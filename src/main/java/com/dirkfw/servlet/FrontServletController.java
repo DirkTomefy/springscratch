@@ -11,12 +11,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.dirkfw.annotation.Controller;
 
 public class FrontServletController extends HttpServlet {
     List<String> controllerClassesInString = new ArrayList<>();
-
+    String controllerPackageName;
     public void init() throws ServletException {
-        for (Class<?> c : ScanUtil.getAllControllerFromClassPath()) {
+        controllerPackageName=getInitParameter("CONTROLLER_PACKAGE");
+        for (Class<?> c : ScanUtil.findAllClassesFromPackageAndAnnotation(controllerPackageName,Controller.class)) {
             controllerClassesInString.add(c.toString());
         }
     }
