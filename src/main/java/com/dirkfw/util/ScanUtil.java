@@ -1,36 +1,36 @@
 package com.dirkfw.util;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import org.reflections.Reflections;
-import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 
-import com.dirkfw.annotation.Controller;
-
 public class ScanUtil {
-    public static Set<Class<?>> getAllPackageFromClassPath(){
-          Reflections reflections = new Reflections(new ConfigurationBuilder()
-            .setUrls(ClasspathHelper.forClassLoader())
-            .setScanners(new SubTypesScanner(false))
-        );
 
-        Set<Class<?>> classes = reflections.getSubTypesOf(Object.class);
+    public static Reflections getReflectionObject(String packageName) {
+        ConfigurationBuilder config = new ConfigurationBuilder();
 
-        return classes;
-    }  
-    public static List<Class<?>> getAllControllerFromClassPath(){
-        List<Class<?>> retournClasses = new ArrayList<>();
-        Set<Class<?>> classes = getAllPackageFromClassPath();
-
-        for (Class<?> c : classes) {
-            if(c.isAnnotationPresent(Controller.class))
-                retournClasses.add(c);
+        if (packageName == null || packageName.trim().isEmpty()) {
+            config.setUrls(ClasspathHelper.forClassLoader());
+        } else {
+            config.forPackages(packageName);
         }
-        return retournClasses;
+
+        config.setScanners(Scanners.SubTypes, Scanners.TypesAnnotated);
+
+        return new Reflections(config);
+    }
+
+    public static List<Class<?>> findAllClassesFromPackageAndAnnotation(String packageName,
+            Class<? extends Annotation> annotationToFind) {
+        Reflections reflections = getReflectionObject(packageName);
+        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(annotationToFind);
+        return new ArrayList<>(annotatedClasses);
     }
 
 }
