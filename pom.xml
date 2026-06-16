@@ -20,7 +20,16 @@
     <artifactId>jakarta.servlet-api</artifactId>
     <version>6.1.0</version> <!-- Version standard pour Jakarta EE 11 -->
     <scope>provided</scope>
+
+    
   </dependency>
+
+  <dependency>
+    <groupId>org.reflections</groupId>
+    <artifactId>reflections</artifactId>
+    <version>0.10.2</version>
+</dependency>
+
   
   </dependencies>
 </project>
