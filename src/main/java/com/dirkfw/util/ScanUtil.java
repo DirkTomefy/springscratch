@@ -12,7 +12,7 @@ import org.reflections.util.ConfigurationBuilder;
 import com.dirkfw.annotation.Controller;
 
 public class ScanUtil {
-    public Set<Class<?>> getAllPackageFromClassPath(){
+    public static Set<Class<?>> getAllPackageFromClassPath(){
           Reflections reflections = new Reflections(new ConfigurationBuilder()
             .setUrls(ClasspathHelper.forClassLoader())
             .setScanners(new SubTypesScanner(false))
@@ -22,7 +22,7 @@ public class ScanUtil {
 
         return classes;
     }  
-    public List<Class<?>> getAllControllerFromClassPath(){
+    public static List<Class<?>> getAllControllerFromClassPath(){
         List<Class<?>> retournClasses = new ArrayList<>();
         Set<Class<?>> classes = getAllPackageFromClassPath();
 
