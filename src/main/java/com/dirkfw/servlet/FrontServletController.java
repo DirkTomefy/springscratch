@@ -30,6 +30,9 @@ public class FrontServletController extends HttpServlet {
         for (Class<?> controller : ctrlHandler.getControllerClasses()) {
             out.println("<p>" + controller.toString() + "</p>");
         }
+        ctrlHandler.getUrlMapps().forEach((cle, valeur) -> {
+            out.println(cle + " : " + valeur);
+        });
         out.println("</body></html>");
     }
 
