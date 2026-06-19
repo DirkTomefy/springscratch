@@ -1,7 +1,9 @@
 package com.dirkfw.util;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -9,6 +11,10 @@ import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
+
+import com.dirkfw.annotation.Controller;
+import com.dirkfw.annotation.UrlMapping;
+import com.dirkfw.mapping.UrlControllerMap;
 
 public class ScanUtil {
 
@@ -31,6 +37,24 @@ public class ScanUtil {
         Reflections reflections = getReflectionObject(packageName);
         Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(annotationToFind);
         return new ArrayList<>(annotatedClasses);
+    }
+
+    public static void addUrlControllerMapFromClass(HashMap<String, UrlControllerMap> maps, Class<?> ctrlClass) {
+        for (Method method : ctrlClass.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(UrlMapping.class)) {
+                UrlMapping urlMapping = method.getAnnotation(UrlMapping.class);
+                maps.put(urlMapping.value(), new UrlControllerMap(method, ctrlClass));
+            }
+        }
+    }
+
+    public static HashMap<String, UrlControllerMap> getAllUrlControllerMapping(String packageName) {
+        List<Class<?>> controllerClasses = findAllClassesFromPackageAndAnnotation(packageName, Controller.class);
+        HashMap<String, UrlControllerMap> retour = new HashMap<>();
+        for (Class<?> ctrlClass : controllerClasses) {
+            addUrlControllerMapFromClass(retour, ctrlClass);
+        }
+        return retour;
     }
 
 }
