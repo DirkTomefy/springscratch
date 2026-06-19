@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.dirkfw.err.UrlNotSupportedException;
+
 public class ControllerHandler {
     List<Class<?>> controllerClasses = new ArrayList<>();
     HashMap<String, UrlControllerMap> urlMapps = new HashMap<>();
@@ -27,6 +29,10 @@ public class ControllerHandler {
 
     public void setUrlMapps(HashMap<String, UrlControllerMap> urlMapps) {
         this.urlMapps = urlMapps;
+    }
+
+    public void verifyvalidUrl(String url) throws UrlNotSupportedException {
+        if(!this.getUrlMapps().containsKey(url)) throw new UrlNotSupportedException(url, urlMapps);
     }
 
 }

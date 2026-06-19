@@ -4,6 +4,8 @@ import java.lang.reflect.Method;
 
 
 public class UrlControllerMap {
+    
+
     Method method;
     Class<?> controllerClasses;
     //autre information comme base_url ou autre type (get ou post)
@@ -34,6 +36,11 @@ public class UrlControllerMap {
 
     public void setControllerClasses(Class<?> controllerClasses) {
         this.controllerClasses = controllerClasses;
+    }
+
+    @Override
+    public String toString() {
+        return "UrlControllerMap [method=" + method + ", controllerClasses=" + controllerClasses + "]";
     }
 
 }
