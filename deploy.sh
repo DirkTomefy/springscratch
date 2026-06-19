@@ -4,6 +4,7 @@ TOMCAT_PATH="/home/tomefy/Documents/tomcat/tomcat"
 
 echo "Construction du projet..."
 mvn clean package
+mvn clean install
 
 JAR_FILE=$(find target -name "*.jar" \
     ! -name "*sources*" \
