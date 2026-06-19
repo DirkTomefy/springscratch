@@ -14,6 +14,7 @@ import org.reflections.util.ConfigurationBuilder;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
+import com.dirkfw.mapping.ControllerHandler;
 import com.dirkfw.mapping.UrlControllerMap;
 
 public class ScanUtil {
@@ -48,13 +49,13 @@ public class ScanUtil {
         }
     }
 
-    public static HashMap<String, UrlControllerMap> getAllUrlControllerMapping(String packageName) {
+    public static ControllerHandler getControllerHandler(String packageName) {
         List<Class<?>> controllerClasses = findAllClassesFromPackageAndAnnotation(packageName, Controller.class);
-        HashMap<String, UrlControllerMap> retour = new HashMap<>();
+        HashMap<String, UrlControllerMap> urlMapps = new HashMap<>();
         for (Class<?> ctrlClass : controllerClasses) {
-            addUrlControllerMapFromClass(retour, ctrlClass);
+            addUrlControllerMapFromClass(urlMapps, ctrlClass);
         }
-        return retour;
+        return new ControllerHandler(controllerClasses, urlMapps);
     }
 
 }

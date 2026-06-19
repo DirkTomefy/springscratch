@@ -2,8 +2,6 @@ package com.dirkfw.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.dirkfw.util.ScanUtil;
 
@@ -11,16 +9,15 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import com.dirkfw.annotation.Controller;
+import com.dirkfw.mapping.ControllerHandler;
 
 public class FrontServletController extends HttpServlet {
-    List<String> controllerClassesInString = new ArrayList<>();
+    ControllerHandler ctrlHandler;
     String controllerPackageName;
+
     public void init() throws ServletException {
-        controllerPackageName=getInitParameter("CONTROLLER_PACKAGE");
-        for (Class<?> c : ScanUtil.findAllClassesFromPackageAndAnnotation(controllerPackageName,Controller.class)) {
-            controllerClassesInString.add(c.toString());
-        }
+        controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
+        ctrlHandler = ScanUtil.getControllerHandler(controllerPackageName);
     }
 
     public void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -30,8 +27,8 @@ public class FrontServletController extends HttpServlet {
         out.println("<html><body>");
         out.println("<h1>Bonjour depuis votre framework préférée !</h1>");
         out.println("<p>Vous venez de : " + request.getRequestURL().toString() + "</p>");
-        for (String cString : controllerClassesInString) {
-            out.println("<p>" + cString + "</p>");
+        for (Class<?> controller : ctrlHandler.getControllerClasses()) {
+            out.println("<p>" + controller.toString() + "</p>");
         }
         out.println("</body></html>");
     }
