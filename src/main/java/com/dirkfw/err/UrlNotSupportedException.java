@@ -3,12 +3,13 @@ package com.dirkfw.err;
 import java.util.HashMap;
 
 import com.dirkfw.mapping.UrlControllerMap;
+import com.dirkfw.mapping.UrlKey;
 
 public class UrlNotSupportedException extends Exception {
-    String urlGot;
-    HashMap<String, UrlControllerMap> supportedUrl;
+    UrlKey urlGot;
+    HashMap<UrlKey, UrlControllerMap> supportedUrl;
 
-    public UrlNotSupportedException(String urlGot, HashMap<String, UrlControllerMap> supportedUrl) {
+    public UrlNotSupportedException(UrlKey urlGot, HashMap<UrlKey, UrlControllerMap> supportedUrl) {
         super("URL non supportée : " + urlGot);
         this.urlGot = urlGot;
         this.supportedUrl = supportedUrl;
@@ -24,7 +25,7 @@ public class UrlNotSupportedException extends Exception {
 
         sb.append("URLs supportées :\n");
 
-        for (String url : supportedUrl.keySet()) {
+        for (UrlKey url : supportedUrl.keySet()) {
             sb.append(" - ")
               .append(url)
               .append("; \n");

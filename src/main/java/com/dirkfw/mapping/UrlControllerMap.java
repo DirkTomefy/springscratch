@@ -8,7 +8,6 @@ public class UrlControllerMap {
 
     Method method;
     Class<?> controllerClasses;
-    //autre information comme base_url ou autre type (get ou post)
 
     public UrlControllerMap(Method method, Class<?> controllerClasses) {
         this.method = method;
