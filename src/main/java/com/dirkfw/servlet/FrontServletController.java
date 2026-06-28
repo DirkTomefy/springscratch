@@ -24,7 +24,7 @@ public class FrontServletController extends HttpServlet {
         controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
         urlProcessor = new UrlProcessor();
         try {
-            ScanUtil.getControllerHandler(controllerPackageName, urlProcessor);
+            ScanUtil.fillUrlProcessor(controllerPackageName, urlProcessor);
         } catch (Exception e) {
             e.printStackTrace();
         }

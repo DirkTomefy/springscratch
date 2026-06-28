@@ -79,7 +79,7 @@ public class ScanUtil {
         return methods;
     }
 
-    public static void getControllerHandler(String packageName, UrlProcessor urlProcessor) throws Exception {
+    public static void fillUrlProcessor(String packageName, UrlProcessor urlProcessor) throws Exception {
         handleAnnotatedClasses(Controller.class, packageName, urlProcessor);
     }
 }
