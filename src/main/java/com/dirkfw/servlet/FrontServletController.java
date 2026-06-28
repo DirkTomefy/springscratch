@@ -11,22 +11,27 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import com.dirkfw.err.UrlNotSupportedException;
-import com.dirkfw.mapping.ControllerHandler;
+import com.dirkfw.mapping.UrlProcessor;
 
 public class FrontServletController extends HttpServlet {
-    ControllerHandler ctrlHandler;
+    UrlProcessor urlProcessor;
     String controllerPackageName;
 
     public void init() throws ServletException {
         controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
-        ctrlHandler = ScanUtil.getControllerHandler(controllerPackageName);
+        urlProcessor = new UrlProcessor();
+        try {
+            ScanUtil.getControllerHandler(controllerPackageName,urlProcessor);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void verifyIfIsValidUrl(HttpServletRequest request, PrintWriter out) throws UrlNotSupportedException {
         String uri = request.getRequestURI();
         String context = request.getContextPath();
         String url = uri.substring(context.length());
-        this.ctrlHandler.verifyvalidUrl(url);
+        this.urlProcessor.verifyvalidUrl(url);
     }
 
     public void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -40,12 +45,12 @@ public class FrontServletController extends HttpServlet {
             out.println("<p>Vous venez de : " + request.getRequestURL().toString() + "</p>");
 
             out.println("<h2>Liste des Controllers : </h2>");
-            for (Class<?> controller : ctrlHandler.getControllerClasses()) {
+            for (Class<?> controller : urlProcessor.getControllerClasses()) {
                 out.println("<p>" + controller.toString() + "</p>");
             }
 
             out.println("<h2>Liste des Url : </h2>");
-            ctrlHandler.getUrlMapps().forEach((cle, valeur) -> {
+            urlProcessor.getUrlMapps().forEach((cle, valeur) -> {
                 out.println(cle + " : " + valeur.toString());
             });
             out.println("</body></html>");
