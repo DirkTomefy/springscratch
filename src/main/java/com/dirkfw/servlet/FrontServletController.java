@@ -2,6 +2,7 @@ package com.dirkfw.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 
 import com.dirkfw.util.ScanUtil;
 
@@ -29,12 +30,12 @@ public class FrontServletController extends HttpServlet {
         }
     }
 
-    public void verifyIfIsValidUrl(HttpServletRequest request, PrintWriter out) throws UrlNotSupportedException {
+    public void executeRequest(HttpServletRequest request, PrintWriter out) throws UrlNotSupportedException, IllegalAccessException, InvocationTargetException {
         String uri = request.getRequestURI();
         String context = request.getContextPath();
         String url = uri.substring(context.length());
         String method = request.getMethod();
-        this.urlProcessor.verifyvalidUrl(new UrlKey(url, UrlHTTPMethod.buildUrlHTTPMethod(method)));
+        this.urlProcessor.executeRequest(new UrlKey(url, UrlHTTPMethod.buildUrlHTTPMethod(method)));
     }
 
     public void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -42,7 +43,7 @@ public class FrontServletController extends HttpServlet {
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
         try {
-            verifyIfIsValidUrl(request, out);
+            executeRequest(request, out);
             out.println("<html><body>");
             out.println("<h1>Bonjour depuis votre framework préférée !</h1>");
             out.println("<p>Vous venez de : " + request.getRequestURL().toString() + "</p>");
@@ -59,7 +60,7 @@ public class FrontServletController extends HttpServlet {
                 out.print("</p>");
             });
             out.println("</body></html>");
-        } catch (UrlNotSupportedException e) {
+        } catch (UrlNotSupportedException | IllegalAccessException | InvocationTargetException e) {
             out.println("<p>" + e.toString() + "</p>");
         }
 

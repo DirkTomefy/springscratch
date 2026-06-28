@@ -1,5 +1,6 @@
 package com.dirkfw.mapping;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,9 +31,12 @@ public class UrlProcessor implements AnnotatedClassesProcessor {
         }
     }
 
-    public void verifyvalidUrl(UrlKey url) throws UrlNotSupportedException {
-        if (!this.getUrlMapps().containsKey(url))
+    public void executeRequest(UrlKey url) throws UrlNotSupportedException, IllegalAccessException, InvocationTargetException {
+        if (!this.getUrlMapps().containsKey(url)){
             throw new UrlNotSupportedException(url, urlMapps);
+        }
+        UrlControllerMap map = this.getUrlMapps().get(url);
+        map.getReflectMethod().invoke(map.getSeedSingleton());
     }
 
     public List<Class<?>> getControllerClasses() {
