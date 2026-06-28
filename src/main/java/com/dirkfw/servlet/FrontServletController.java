@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import com.dirkfw.err.UrlNotSupportedException;
+import com.dirkfw.mapping.UrlHTTPMethod;
+import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlProcessor;
 
 public class FrontServletController extends HttpServlet {
@@ -21,7 +23,7 @@ public class FrontServletController extends HttpServlet {
         controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
         urlProcessor = new UrlProcessor();
         try {
-            ScanUtil.getControllerHandler(controllerPackageName,urlProcessor);
+            ScanUtil.getControllerHandler(controllerPackageName, urlProcessor);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -31,7 +33,8 @@ public class FrontServletController extends HttpServlet {
         String uri = request.getRequestURI();
         String context = request.getContextPath();
         String url = uri.substring(context.length());
-        this.urlProcessor.verifyvalidUrl(url);
+        String method = request.getMethod();
+        this.urlProcessor.verifyvalidUrl(new UrlKey(url, UrlHTTPMethod.buildUrlHTTPMethod(method)));
     }
 
     public void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -51,7 +54,9 @@ public class FrontServletController extends HttpServlet {
 
             out.println("<h2>Liste des Url : </h2>");
             urlProcessor.getUrlMapps().forEach((cle, valeur) -> {
+                out.print("<p>");
                 out.println(cle + " : " + valeur.toString());
+                out.print("</p>");
             });
             out.println("</body></html>");
         } catch (UrlNotSupportedException e) {
