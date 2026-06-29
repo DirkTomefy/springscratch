@@ -28,11 +28,15 @@ public class UrlProcessor implements AnnotatedClassesProcessor {
                             new UrlControllerMap(method, clazz));
                 }
             }
+        } else {
+            return;
         }
+
     }
 
-    public void executeRequest(UrlKey url) throws UrlNotSupportedException, IllegalAccessException, InvocationTargetException {
-        if (!this.getUrlMapps().containsKey(url)){
+    public void executeRequest(UrlKey url)
+            throws UrlNotSupportedException, IllegalAccessException, InvocationTargetException {
+        if (!this.getUrlMapps().containsKey(url)) {
             throw new UrlNotSupportedException(url, urlMapps);
         }
         UrlControllerMap map = this.getUrlMapps().get(url);
