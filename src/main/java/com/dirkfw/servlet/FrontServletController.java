@@ -16,13 +16,10 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class FrontServletController extends HttpServlet {
 
-    private UrlProcessor urlProcessor;
-
-    @Override
-    public void init() throws ServletException {
-        urlProcessor = (UrlProcessor) getServletContext()
+    private UrlProcessor urlProcessor=(UrlProcessor) getServletContext()
                     .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
-    }
+
+   
 
     private void executeRequest(HttpServletRequest request)
             throws UrlNotSupportedException, ReflectiveOperationException {
