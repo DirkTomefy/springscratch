@@ -2,7 +2,6 @@ package com.dirkfw.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.InvocationTargetException;
 
 import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.mapping.UrlHTTPMethod;
@@ -33,7 +32,7 @@ public class FrontServletController extends HttpServlet {
     }
 
     private void executeRequest(HttpServletRequest request)
-            throws UrlNotSupportedException, IllegalAccessException, InvocationTargetException {
+            throws UrlNotSupportedException, ReflectiveOperationException  {
 
         String url = getRequestedUrl(request);
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
@@ -72,7 +71,7 @@ public class FrontServletController extends HttpServlet {
         } catch (UrlNotSupportedException e) {
             printError(out, e.toString());
 
-        } catch (IllegalAccessException | InvocationTargetException e) {
+        } catch (ReflectiveOperationException e) {
             printError(out, e.getMessage());
             e.printStackTrace();
         }
