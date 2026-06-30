@@ -8,7 +8,6 @@ import com.dirkfw.mapping.UrlHTTPMethod;
 import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlProcessor;
 import com.dirkfw.servlet.listener.FrontServletContextListener;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,10 +15,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class FrontServletController extends HttpServlet {
 
-    private UrlProcessor urlProcessor=(UrlProcessor) getServletContext()
-                    .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
+    private UrlProcessor urlProcessor;
 
-   
+    @Override
+    public void init() throws ServletException {
+        urlProcessor = (UrlProcessor) getServletContext()
+                    .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
+    }
 
     private void executeRequest(HttpServletRequest request)
             throws UrlNotSupportedException, ReflectiveOperationException {
