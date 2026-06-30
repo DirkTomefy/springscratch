@@ -22,6 +22,8 @@ public class FrontServletController extends HttpServlet {
     @Override
     public void init() throws ServletException {
         controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
+        if (controllerPackageName == null)
+            controllerPackageName = "";
         urlProcessor = new UrlProcessor();
 
         try {
@@ -32,7 +34,7 @@ public class FrontServletController extends HttpServlet {
     }
 
     private void executeRequest(HttpServletRequest request)
-            throws UrlNotSupportedException, ReflectiveOperationException  {
+            throws UrlNotSupportedException, ReflectiveOperationException {
 
         String url = getRequestedUrl(request);
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
@@ -65,7 +67,7 @@ public class FrontServletController extends HttpServlet {
 
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
-        try  {
+        try {
             executeRequest(request);
             printDebugPage(request, out);
         } catch (UrlNotSupportedException e) {
@@ -108,8 +110,7 @@ public class FrontServletController extends HttpServlet {
         out.println("<h2>Liste des Url :</h2>");
 
         urlProcessor.getUrlMapps()
-                .forEach((key, value) ->
-                        out.println("<p>" + key + " : " + value + "</p>"));
+                .forEach((key, value) -> out.println("<p>" + key + " : " + value + "</p>"));
     }
 
     private void printError(PrintWriter out, String message) {
