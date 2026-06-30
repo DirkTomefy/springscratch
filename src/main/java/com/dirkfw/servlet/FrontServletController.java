@@ -7,7 +7,7 @@ import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.mapping.UrlHTTPMethod;
 import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlProcessor;
-import com.dirkfw.util.ScanUtil;
+import com.dirkfw.servlet.listener.FrontServletContextListener;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -17,20 +17,11 @@ import jakarta.servlet.http.HttpServletResponse;
 public class FrontServletController extends HttpServlet {
 
     private UrlProcessor urlProcessor;
-    private String controllerPackageName;
 
     @Override
     public void init() throws ServletException {
-        controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
-        if (controllerPackageName == null)
-            controllerPackageName = "";
-        urlProcessor = new UrlProcessor();
-
-        try {
-            ScanUtil.fillUrlProcessor(controllerPackageName, urlProcessor);
-        } catch (Exception e) {
-            throw new ServletException(e);
-        }
+        urlProcessor = (UrlProcessor) getServletContext()
+                    .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
     }
 
     private void executeRequest(HttpServletRequest request)
