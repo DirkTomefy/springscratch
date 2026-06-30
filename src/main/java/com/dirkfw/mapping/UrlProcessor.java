@@ -7,6 +7,7 @@ import java.util.List;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
+import com.dirkfw.err.UrlAlreadyDefinedException;
 import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
 
@@ -16,15 +17,21 @@ public class UrlProcessor implements AnnotatedClassesProcessor {
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
 
     @Override
-    public void processAnnotatedClass(Class<?> clazz) throws Exception {
+    public void processAnnotatedClass(Class<?> clazz) throws ReflectiveOperationException,UrlAlreadyDefinedException {
 
         if (clazz.isAnnotationPresent(Controller.class)) {
             controllerClasses.add(clazz);
             for (Method method : clazz.getDeclaredMethods()) {
                 if (method.isAnnotationPresent(UrlMapping.class)) {
                     UrlMapping urlMapping = method.getAnnotation(UrlMapping.class);
-                    urlMapps.put(new UrlKey(urlMapping.value(), urlMapping.httpMethod()),
-                            new UrlControllerMap(method, clazz));
+                    UrlKey key = new UrlKey(urlMapping.value(), urlMapping.httpMethod());
+                    if (urlMapps.containsKey(key)) {
+                        throw new UrlAlreadyDefinedException(key, urlMapps.get(key));
+                    } else {
+                        urlMapps.put(key,
+                                new UrlControllerMap(method, clazz));
+                    }
+
                 }
             }
         } else {
