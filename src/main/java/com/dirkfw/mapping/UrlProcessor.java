@@ -16,7 +16,7 @@ public class UrlProcessor implements AnnotatedClassesProcessor {
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
 
     @Override
-    public void process(Class<?> clazz) throws Exception {
+    public void processAnnotatedClass(Class<?> clazz) throws Exception {
 
         if (clazz.isAnnotationPresent(Controller.class)) {
             controllerClasses.add(clazz);

@@ -46,7 +46,7 @@ public class ScanUtil {
                 String simpleName = file.getName().substring(0, file.getName().length() - ".class".length());
                 String className = joinPackage(packageName, simpleName);
                 Class<?> clazz = classLoader.loadClass(className);
-                processor.process(clazz);
+                processor.processAnnotatedClass(clazz);
             }
         }
     }
