@@ -3,6 +3,10 @@ package com.dirkfw.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import com.dirkfw.err.UrlNotSupportedException;
+import com.dirkfw.mapping.UrlHTTPMethod;
+import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.mapping.UrlProcessor;
 import com.dirkfw.util.ScanUtil;
 
 import jakarta.servlet.ServletException;
@@ -10,68 +14,106 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import com.dirkfw.err.UrlNotSupportedException;
-import com.dirkfw.mapping.UrlHTTPMethod;
-import com.dirkfw.mapping.UrlKey;
-import com.dirkfw.mapping.UrlProcessor;
-
 public class FrontServletController extends HttpServlet {
-    UrlProcessor urlProcessor;
-    String controllerPackageName;
 
+    private UrlProcessor urlProcessor;
+    private String controllerPackageName;
+
+    @Override
     public void init() throws ServletException {
         controllerPackageName = getInitParameter("CONTROLLER_PACKAGE");
+        if (controllerPackageName == null)
+            controllerPackageName = "";
         urlProcessor = new UrlProcessor();
+
         try {
-            ScanUtil.getControllerHandler(controllerPackageName, urlProcessor);
+            ScanUtil.fillUrlProcessor(controllerPackageName, urlProcessor);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException(e);
         }
     }
 
-    public void verifyIfIsValidUrl(HttpServletRequest request, PrintWriter out) throws UrlNotSupportedException {
-        String uri = request.getRequestURI();
-        String context = request.getContextPath();
-        String url = uri.substring(context.length());
-        String method = request.getMethod();
-        this.urlProcessor.verifyvalidUrl(new UrlKey(url, UrlHTTPMethod.buildUrlHTTPMethod(method)));
+    private void executeRequest(HttpServletRequest request)
+            throws UrlNotSupportedException, ReflectiveOperationException {
+
+        String url = getRequestedUrl(request);
+        UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
+
+        urlProcessor.executeRequest(new UrlKey(url, method));
     }
 
-    public void processRequest(HttpServletRequest request, HttpServletResponse response)
+    private String getRequestedUrl(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String context = request.getContextPath();
+        return uri.substring(context.length());
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
+        processRequest(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        processRequest(request, response);
+    }
+
+    private void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
         try {
-            verifyIfIsValidUrl(request, out);
-            out.println("<html><body>");
-            out.println("<h1>Bonjour depuis votre framework préférée !</h1>");
-            out.println("<p>Vous venez de : " + request.getRequestURL().toString() + "</p>");
-
-            out.println("<h2>Liste des Controllers : </h2>");
-            for (Class<?> controller : urlProcessor.getControllerClasses()) {
-                out.println("<p>" + controller.toString() + "</p>");
-            }
-
-            out.println("<h2>Liste des Url : </h2>");
-            urlProcessor.getUrlMapps().forEach((cle, valeur) -> {
-                out.print("<p>");
-                out.println(cle + " : " + valeur.toString());
-                out.print("</p>");
-            });
-            out.println("</body></html>");
+            executeRequest(request);
+            printDebugPage(request, out);
         } catch (UrlNotSupportedException e) {
-            out.println("<p>" + e.toString() + "</p>");
+            printError(out, e.toString());
+
+        } catch (ReflectiveOperationException e) {
+            printError(out, e.getMessage());
+            e.printStackTrace();
         }
-
+        out.close();
     }
 
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        processRequest(request, response);
+    private void printDebugPage(HttpServletRequest request, PrintWriter out) {
+
+        out.println("<html><body>");
+
+        printHeader(request, out);
+        printControllers(out);
+        printMappings(out);
+
+        out.println("</body></html>");
     }
 
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        processRequest(request, response);
+    private void printHeader(HttpServletRequest request, PrintWriter out) {
+
+        out.println("<h1>Bonjour depuis votre framework préféré !</h1>");
+        out.println("<p>Vous venez de : " + request.getRequestURL() + "</p>");
+    }
+
+    private void printControllers(PrintWriter out) {
+
+        out.println("<h2>Liste des Controllers :</h2>");
+
+        urlProcessor.getControllerClasses()
+                .forEach(controller -> out.println("<p>" + controller + "</p>"));
+    }
+
+    private void printMappings(PrintWriter out) {
+
+        out.println("<h2>Liste des Url :</h2>");
+
+        urlProcessor.getUrlMapps()
+                .forEach((key, value) -> out.println("<p>" + key + " : " + value + "</p>"));
+    }
+
+    private void printError(PrintWriter out, String message) {
+        out.println("<p>" + message + "</p>");
     }
 }
