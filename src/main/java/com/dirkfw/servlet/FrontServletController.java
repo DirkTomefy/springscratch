@@ -2,10 +2,12 @@ package com.dirkfw.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Map;
 
 import com.dirkfw.classes.FrontServletParam;
 import com.dirkfw.classes.helper.UrlHTTPMethod;
 import com.dirkfw.classes.key.UrlKey;
+import com.dirkfw.classes.mapping.ModelAndView;
 import com.dirkfw.classes.mapping.UrlControllerMap;
 import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.servlet.listener.FrontServletContextListener;
@@ -16,12 +18,16 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class FrontServletController extends HttpServlet {
 
+    String prefixOfView;
+    String suffixOfView;
     private FrontServletParam urlProcessor;
 
     @Override
     public void init() throws ServletException {
         urlProcessor = (FrontServletParam) getServletContext()
                     .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
+        prefixOfView = this.getInitParameter("VIEW_PREFIX");
+        suffixOfView = this.getInitParameter("VIEW_SUFFIX");
     }
 
     private void executeRequest(HttpServletRequest request)
@@ -32,13 +38,24 @@ public class FrontServletController extends HttpServlet {
         UrlKey urlKey = new UrlKey(urlString, method);
         verifyIsValidUrl(urlKey) ;
         UrlControllerMap map = this.urlProcessor.getUrlMapps().get(urlKey);
-        map.getReflectMethod().invoke(map.getPrototypeSeed());
+        Object maybeModelAndView =map.getReflectMethod().invoke(map.getPrototypeSeed());
+        if(maybeModelAndView instanceof ModelAndView){
+            ModelAndView mav=(ModelAndView) maybeModelAndView;
+            handleModelAndView(mav,request);
+        }
     }
 
     private void verifyIsValidUrl(UrlKey urlKey) throws UrlNotSupportedException{
         if (!this.urlProcessor.getUrlMapps().containsKey(urlKey)) 
             throw new UrlNotSupportedException(urlKey, urlProcessor.getUrlMapps());
 
+    }
+
+    private void handleModelAndView(ModelAndView mav,HttpServletRequest request){
+        for (Map.Entry<String,Object> attr : mav.getAttributes().entrySet()) { 
+            request.setAttribute(attr.getKey(), attr.getValue());
+        }
+        request.getRequestDispatcher(this.prefixOfView+mav.getViewName()+this.suffixOfView);
     }
 
     private String getRequestedUrl(HttpServletRequest request) {
@@ -68,14 +85,15 @@ public class FrontServletController extends HttpServlet {
             executeRequest(request);
         } catch (Exception e) {
             PrintWriter out = response.getWriter();
-            printError(out, e.toString());
+            printError(out, e);
             e.printStackTrace();
             out.close();
         } 
     }
 
 
-    private void printError(PrintWriter out, String message) {
-        out.println("<p>" + message + "</p>");
+    private void printError(PrintWriter out, Exception e) {
+        out.println(" <p >Une erreur interne du framework a été détéctée </p>");
+        e.printStackTrace(out);
     }
 }
