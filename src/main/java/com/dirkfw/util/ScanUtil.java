@@ -4,7 +4,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.Enumeration;
 
-import com.dirkfw.mapping.UrlProcessor;
+import com.dirkfw.classes.FrontServletParam;
 import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
 
 public class ScanUtil {
@@ -60,7 +60,7 @@ public class ScanUtil {
     }
 
 
-    public static void fillUrlProcessor(String packageName, UrlProcessor urlProcessor) throws Exception {
+    public static void fillUrlProcessor(String packageName, FrontServletParam urlProcessor) throws Exception {
         handleAnnotatedClasses(packageName, urlProcessor);
     }
 }

@@ -1,7 +1,7 @@
 package com.dirkfw.servlet.listener;
 
 
-import com.dirkfw.mapping.UrlProcessor;
+import com.dirkfw.classes.FrontServletParam;
 import com.dirkfw.util.ScanUtil;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
@@ -23,7 +23,7 @@ public class FrontServletContextListener implements ServletContextListener {
             controllerPackage = ""; 
         }
 
-        UrlProcessor urlProcessor = new UrlProcessor();
+        FrontServletParam urlProcessor = new FrontServletParam();
         try {
             ScanUtil.fillUrlProcessor(controllerPackage, urlProcessor);
         } catch (Exception e) {

@@ -2,8 +2,8 @@ package com.dirkfw.err;
 
 import java.util.HashMap;
 
-import com.dirkfw.mapping.UrlControllerMap;
-import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.classes.key.UrlKey;
+import com.dirkfw.classes.mapping.UrlControllerMap;
 
 public class UrlNotSupportedException extends Exception {
     UrlKey urlGot;
