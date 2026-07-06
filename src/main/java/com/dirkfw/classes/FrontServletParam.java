@@ -10,7 +10,6 @@ import com.dirkfw.annotation.UrlMapping;
 import com.dirkfw.classes.key.UrlKey;
 import com.dirkfw.classes.mapping.UrlControllerMap;
 import com.dirkfw.err.UrlAlreadyDefinedException;
-import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
 
 public class FrontServletParam implements AnnotatedClassesProcessor {
@@ -40,15 +39,6 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
             return;
         }
 
-    }
-
-    public void executeRequest(UrlKey url)
-            throws UrlNotSupportedException, ReflectiveOperationException {
-        if (!this.getUrlMapps().containsKey(url)) {
-            throw new UrlNotSupportedException(url, urlMapps);
-        }
-        UrlControllerMap map = this.getUrlMapps().get(url);
-        map.getReflectMethod().invoke(map.getPrototypeSeed());
     }
 
     public List<Class<?>> getControllerClasses() {
