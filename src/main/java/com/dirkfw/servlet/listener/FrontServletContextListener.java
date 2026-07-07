@@ -12,6 +12,9 @@ import jakarta.servlet.annotation.WebListener;
 public class FrontServletContextListener implements ServletContextListener {
 
     public static final String URL_PROCESSOR_ATTR = "urlProcessor";
+    public static final String VIEW_PREFIX="VIEW_PREFIX";
+    public static final String VIEW_SUFFIX="VIEW_SUFFIX";
+
     public static final String CONTROLLER_PACKAGE="CONTROLLER_PACKAGE";
 
     @Override
@@ -19,6 +22,9 @@ public class FrontServletContextListener implements ServletContextListener {
         ServletContext context = sce.getServletContext();
 
         String controllerPackage = context.getInitParameter(CONTROLLER_PACKAGE);
+        String viewPrefixValue = context.getInitParameter(VIEW_PREFIX);
+        String viewSuffixValue = context.getInitParameter(VIEW_SUFFIX);
+
         if (controllerPackage == null) {
             controllerPackage = ""; 
         }
@@ -32,6 +38,9 @@ public class FrontServletContextListener implements ServletContextListener {
         }
 
         context.setAttribute(URL_PROCESSOR_ATTR, urlProcessor);
+        context.setAttribute(VIEW_PREFIX, viewPrefixValue);
+        context.setAttribute(VIEW_SUFFIX, viewSuffixValue);
+
     }
 
     @Override

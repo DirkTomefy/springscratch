@@ -19,46 +19,50 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class FrontServletController extends HttpServlet {
 
+   
     String prefixOfView;
     String suffixOfView;
     private FrontServletParam urlProcessor;
 
-   @Override
-public void init() throws ServletException {
-    urlProcessor = (FrontServletParam) getServletContext()
+    @Override
+    public void init() throws ServletException {
+        urlProcessor = (FrontServletParam) getServletContext()
                 .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
 
-    prefixOfView = this.getInitParameter("VIEW_PREFIX"); 
-    suffixOfView = this.getInitParameter("VIEW_SUFFIX"); 
-}
+        prefixOfView = (String) this.getServletContext().getAttribute(FrontServletContextListener.VIEW_PREFIX);
+        suffixOfView = (String) this.getServletContext().getAttribute(FrontServletContextListener.VIEW_SUFFIX);
+    }
 
-
-    private void executeRequest(HttpServletRequest request,HttpServletResponse response)
-            throws UrlNotSupportedException, ReflectiveOperationException, ServletException, IOException {    
+    private void executeRequest(HttpServletRequest request, HttpServletResponse response)
+            throws UrlNotSupportedException, ReflectiveOperationException, ServletException, IOException {
         String urlString = getRequestedUrl(request);
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
         UrlKey urlKey = new UrlKey(urlString, method);
-        verifyIsValidUrl(urlKey) ;
+        verifyIsValidUrl(urlKey);
         UrlControllerMap map = this.urlProcessor.getUrlMapps().get(urlKey);
-        Object maybeModelAndView =map.getReflectMethod().invoke(map.getPrototypeSeed());
-        if(maybeModelAndView instanceof ModelAndView){
-            ModelAndView mav=(ModelAndView) maybeModelAndView;
-            handleModelAndView(mav,request,response);
+        Object maybeModelAndView = map.getReflectMethod().invoke(map.getPrototypeSeed());
+
+        if(maybeModelAndView == null)
+            return;
+        
+        if (maybeModelAndView instanceof ModelAndView) {
+            ModelAndView mav = (ModelAndView) maybeModelAndView;
+            handleModelAndView(mav, request, response);
         }
     }
 
-    private void verifyIsValidUrl(UrlKey urlKey) throws UrlNotSupportedException{
-        if (!this.urlProcessor.getUrlMapps().containsKey(urlKey)) 
+    private void verifyIsValidUrl(UrlKey urlKey) throws UrlNotSupportedException {
+        if (!this.urlProcessor.getUrlMapps().containsKey(urlKey))
             throw new UrlNotSupportedException(urlKey, urlProcessor.getUrlMapps());
 
     }
 
-    private void handleModelAndView(ModelAndView mav,HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException{
-        for (Map.Entry<String,Object> attr : mav.getAttributes().entrySet()) { 
+    private void handleModelAndView(ModelAndView mav, HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        for (Map.Entry<String, Object> attr : mav.getAttributes().entrySet()) {
             request.setAttribute(attr.getKey(), attr.getValue());
         }
-        String path=this.prefixOfView+mav.getViewName()+this.suffixOfView;
-
+        String path = this.prefixOfView + mav.getViewName() + this.suffixOfView;
 
         request.getRequestDispatcher(path).forward(request, response);
     }
@@ -87,15 +91,14 @@ public void init() throws ServletException {
             throws IOException {
 
         try {
-            executeRequest(request,response);
+            executeRequest(request, response);
         } catch (Exception e) {
             PrintWriter out = response.getWriter();
             printError(out, e);
             e.printStackTrace();
             out.close();
-        } 
+        }
     }
-
 
     private void printError(PrintWriter out, Exception e) {
         out.println(" <p >Une erreur interne du framework a été détéctée </p>");
