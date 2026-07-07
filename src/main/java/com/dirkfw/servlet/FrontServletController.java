@@ -11,6 +11,7 @@ import com.dirkfw.classes.mapping.ModelAndView;
 import com.dirkfw.classes.mapping.UrlControllerMap;
 import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.servlet.listener.FrontServletContextListener;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,17 +23,18 @@ public class FrontServletController extends HttpServlet {
     String suffixOfView;
     private FrontServletParam urlProcessor;
 
-    @Override
-    public void init() throws ServletException {
-        urlProcessor = (FrontServletParam) getServletContext()
-                    .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
-        prefixOfView = this.getInitParameter("VIEW_PREFIX");
-        suffixOfView = this.getInitParameter("VIEW_SUFFIX");
-    }
+   @Override
+public void init() throws ServletException {
+    urlProcessor = (FrontServletParam) getServletContext()
+                .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
 
-    private void executeRequest(HttpServletRequest request)
-            throws UrlNotSupportedException, ReflectiveOperationException {
+    prefixOfView = this.getInitParameter("VIEW_PREFIX"); 
+    suffixOfView = this.getInitParameter("VIEW_SUFFIX"); 
+}
 
+
+    private void executeRequest(HttpServletRequest request,HttpServletResponse response)
+            throws UrlNotSupportedException, ReflectiveOperationException, ServletException, IOException {    
         String urlString = getRequestedUrl(request);
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
         UrlKey urlKey = new UrlKey(urlString, method);
@@ -41,7 +43,7 @@ public class FrontServletController extends HttpServlet {
         Object maybeModelAndView =map.getReflectMethod().invoke(map.getPrototypeSeed());
         if(maybeModelAndView instanceof ModelAndView){
             ModelAndView mav=(ModelAndView) maybeModelAndView;
-            handleModelAndView(mav,request);
+            handleModelAndView(mav,request,response);
         }
     }
 
@@ -51,11 +53,14 @@ public class FrontServletController extends HttpServlet {
 
     }
 
-    private void handleModelAndView(ModelAndView mav,HttpServletRequest request){
+    private void handleModelAndView(ModelAndView mav,HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException{
         for (Map.Entry<String,Object> attr : mav.getAttributes().entrySet()) { 
             request.setAttribute(attr.getKey(), attr.getValue());
         }
-        request.getRequestDispatcher(this.prefixOfView+mav.getViewName()+this.suffixOfView);
+        String path=this.prefixOfView+mav.getViewName()+this.suffixOfView;
+
+
+        request.getRequestDispatcher(path).forward(request, response);
     }
 
     private String getRequestedUrl(HttpServletRequest request) {
@@ -82,7 +87,7 @@ public class FrontServletController extends HttpServlet {
             throws IOException {
 
         try {
-            executeRequest(request);
+            executeRequest(request,response);
         } catch (Exception e) {
             PrintWriter out = response.getWriter();
             printError(out, e);
