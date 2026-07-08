@@ -1,8 +1,8 @@
 package com.dirkfw.err;
 
 
-import com.dirkfw.mapping.UrlControllerMap;
-import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.classes.key.UrlKey;
+import com.dirkfw.classes.mapping.UrlControllerMap;
 
 public class UrlAlreadyDefinedException extends Exception {
     UrlKey url;

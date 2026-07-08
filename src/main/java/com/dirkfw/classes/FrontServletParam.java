@@ -1,4 +1,4 @@
-package com.dirkfw.mapping;
+package com.dirkfw.classes;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -7,11 +7,12 @@ import java.util.List;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
+import com.dirkfw.classes.key.UrlKey;
+import com.dirkfw.classes.mapping.UrlControllerMap;
 import com.dirkfw.err.UrlAlreadyDefinedException;
-import com.dirkfw.err.UrlNotSupportedException;
 import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
 
-public class UrlProcessor implements AnnotatedClassesProcessor {
+public class FrontServletParam implements AnnotatedClassesProcessor {
 
     private final List<Class<?>> controllerClasses = new ArrayList<>();
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
@@ -38,15 +39,6 @@ public class UrlProcessor implements AnnotatedClassesProcessor {
             return;
         }
 
-    }
-
-    public void executeRequest(UrlKey url)
-            throws UrlNotSupportedException, ReflectiveOperationException {
-        if (!this.getUrlMapps().containsKey(url)) {
-            throw new UrlNotSupportedException(url, urlMapps);
-        }
-        UrlControllerMap map = this.getUrlMapps().get(url);
-        map.getReflectMethod().invoke(map.getPrototypeSeed());
     }
 
     public List<Class<?>> getControllerClasses() {
