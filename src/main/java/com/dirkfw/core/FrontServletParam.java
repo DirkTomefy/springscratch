@@ -7,8 +7,7 @@ import java.util.List;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
-import com.dirkfw.annotation.scope.*;           // import des annotations de scope
-import com.dirkfw.mapping.Scope;
+import com.dirkfw.container.BeanProvider;
 import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlControllerMap;
 import com.dirkfw.exception.UrlAlreadyDefinedException;
@@ -16,9 +15,13 @@ import com.dirkfw.util.AnnotatedClassesProcessor;
 
 public class FrontServletParam implements AnnotatedClassesProcessor {
 
+    private final BeanProvider beanProvider ;
     private final List<Class<?>> controllerClasses = new ArrayList<>();
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
 
+    public FrontServletParam(BeanProvider beanProvider){
+        this.beanProvider=beanProvider;
+    }
     @Override
     public void processAnnotatedClass(Class<?> clazz) throws Exception {
         if (!clazz.isAnnotationPresent(Controller.class)) {
@@ -26,13 +29,6 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
         }
 
         controllerClasses.add(clazz);
-
-        Scope scope = Scope.SINGLETON; 
-        if (clazz.isAnnotationPresent(SingletonScope.class)) {
-            scope = Scope.SINGLETON;
-        } else if (clazz.isAnnotationPresent(PrototypeScope.class)) {
-            scope = Scope.PROTOTYPE;
-        }
 
         for (Method method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(UrlMapping.class)) {
@@ -42,7 +38,8 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
                 if (urlMapps.containsKey(key)) {
                     throw new UrlAlreadyDefinedException(key, urlMapps.get(key));
                 } else {
-                    urlMapps.put(key, new UrlControllerMap(method, clazz, scope));
+                    urlMapps.put(key, new UrlControllerMap(method, clazz,beanProvider));
+                    beanProvider.processOnScan(clazz);
                 }
             }
         }

@@ -5,7 +5,6 @@ import java.net.URL;
 import java.util.Enumeration;
 
 import com.dirkfw.core.FrontServletParam;
-import com.dirkfw.util.AnnotatedClassesProcessor;
 
 public class ScanUtil {
 
