@@ -1,7 +1,7 @@
 package com.dirkfw.servlet.listener;
 
 
-import com.dirkfw.classes.FrontServletParam;
+import com.dirkfw.core.FrontServletParam;
 import com.dirkfw.util.ScanUtil;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;

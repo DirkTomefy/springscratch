@@ -1,4 +1,4 @@
-package com.dirkfw.classes.mapping;
+package com.dirkfw.mapping;
 
 import java.lang.reflect.Method;
 

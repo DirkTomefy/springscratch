@@ -1,4 +1,4 @@
-package com.dirkfw.classes.helper;
+package com.dirkfw.mapping;
 
 public enum UrlHTTPMethod {
     GET,

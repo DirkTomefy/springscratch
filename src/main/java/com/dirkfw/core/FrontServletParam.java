@@ -1,4 +1,4 @@
-package com.dirkfw.classes;
+package com.dirkfw.core;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -7,10 +7,10 @@ import java.util.List;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
-import com.dirkfw.classes.key.UrlKey;
-import com.dirkfw.classes.mapping.UrlControllerMap;
-import com.dirkfw.err.UrlAlreadyDefinedException;
-import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
+import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.mapping.UrlControllerMap;
+import com.dirkfw.exception.UrlAlreadyDefinedException;
+import com.dirkfw.util.AnnotatedClassesProcessor;
 
 public class FrontServletParam implements AnnotatedClassesProcessor {
 

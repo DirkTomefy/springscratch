@@ -4,8 +4,8 @@ import java.io.File;
 import java.net.URL;
 import java.util.Enumeration;
 
-import com.dirkfw.classes.FrontServletParam;
-import com.dirkfw.util.interfaces.AnnotatedClassesProcessor;
+import com.dirkfw.core.FrontServletParam;
+import com.dirkfw.util.AnnotatedClassesProcessor;
 
 public class ScanUtil {
 
