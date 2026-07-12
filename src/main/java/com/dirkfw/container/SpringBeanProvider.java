@@ -3,11 +3,12 @@ package com.dirkfw.container;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
-import com.dirkfw.servlet.listener.FrontServletContextListener;
 
 import jakarta.servlet.ServletContext;
 
 public class SpringBeanProvider extends BeanProvider {
+
+    public static final String SPRING_CONFIGURATION = "SPRING_CONFIGURATION";
 
     private final Object applicationContext;
 
@@ -19,12 +20,12 @@ public class SpringBeanProvider extends BeanProvider {
 
             String configClassName =
                     servletContext.getInitParameter(
-                            FrontServletContextListener.SPRING_CONFIGURATION);
+                            SpringBeanProvider.SPRING_CONFIGURATION);
 
             if (configClassName == null || configClassName.isBlank()) {
                 throw new RuntimeException(
                         "Le paramètre '"
-                                + FrontServletContextListener.SPRING_CONFIGURATION
+                                + SpringBeanProvider.SPRING_CONFIGURATION
                                 + "' est obligatoire.");
             }
 

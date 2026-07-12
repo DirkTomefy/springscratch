@@ -24,7 +24,6 @@ public class FrontServletContextListener implements ServletContextListener {
 
     public static final String BEAN_PROVIDER_CLASS = "BEAN_PROVIDER";
 
-    public static final String SPRING_CONFIGURATION = "SPRING_CONFIGURATION";
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
