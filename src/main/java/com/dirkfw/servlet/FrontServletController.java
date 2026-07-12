@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 
-import com.dirkfw.classes.FrontServletParam;
-import com.dirkfw.classes.helper.UrlHTTPMethod;
-import com.dirkfw.classes.key.UrlKey;
-import com.dirkfw.classes.mapping.ModelAndView;
-import com.dirkfw.classes.mapping.UrlControllerMap;
-import com.dirkfw.err.UrlNotSupportedException;
+import com.dirkfw.core.FrontServletParam;
+import com.dirkfw.mapping.UrlHTTPMethod;
+import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.mapping.ModelAndView;
+import com.dirkfw.mapping.UrlControllerMap;
+import com.dirkfw.exception.UrlNotSupportedException;
 import com.dirkfw.servlet.listener.FrontServletContextListener;
 
 import jakarta.servlet.ServletException;
@@ -40,7 +40,7 @@ public class FrontServletController extends HttpServlet {
         UrlKey urlKey = new UrlKey(urlString, method);
         verifyIsValidUrl(urlKey);
         UrlControllerMap map = this.urlProcessor.getUrlMapps().get(urlKey);
-        Object maybeModelAndView = map.getReflectMethod().invoke(map.getPrototypeSeed());
+        Object maybeModelAndView = map.getReflectMethod().invoke(map.getControllerInstance(request));
 
         if(maybeModelAndView == null)
             return;

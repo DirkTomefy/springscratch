@@ -1,6 +1,5 @@
-package com.dirkfw.classes.key;
+package com.dirkfw.mapping;
 
-import com.dirkfw.classes.helper.UrlHTTPMethod;
 
 public class UrlKey {
     
