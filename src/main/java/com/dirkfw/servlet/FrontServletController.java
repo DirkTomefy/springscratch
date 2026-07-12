@@ -40,7 +40,7 @@ public class FrontServletController extends HttpServlet {
         UrlKey urlKey = new UrlKey(urlString, method);
         verifyIsValidUrl(urlKey);
         UrlControllerMap map = this.urlProcessor.getUrlMapps().get(urlKey);
-        Object maybeModelAndView = map.getReflectMethod().invoke(map.getPrototypeSeed());
+        Object maybeModelAndView = map.getReflectMethod().invoke(map.getControllerInstance(request));
 
         if(maybeModelAndView == null)
             return;

@@ -1,44 +1,41 @@
 package com.dirkfw.mapping;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 
 public class UrlControllerMap {
+    private final Method reflectMethod;
+    private final Class<?> controllerClass;
+    private final Scope scope;
+    private Object singletonInstance; 
 
-    Method reflectMethod;
-    Class<?> controllerClasses;
-   
-    public UrlControllerMap(Method reflectMethod, Class<?> controllerClasses) {
+
+    public UrlControllerMap(Method reflectMethod, Class<?> controllerClass, Scope scope) throws Exception {
         this.reflectMethod = reflectMethod;
-        this.controllerClasses = controllerClasses;
-        
-      
+        this.controllerClass = controllerClass;
+        this.scope = scope;
+
+        if (scope == Scope.SINGLETON) {
+            this.singletonInstance = createNewInstance();
+        }
     }
 
-    public Class<?> getControllerClasses() {
-        return controllerClasses;
+    public Object getControllerInstance(HttpServletRequest request) throws ReflectiveOperationException {
+        switch (scope) {
+            case SINGLETON:
+                return singletonInstance;
+            case PROTOTYPE:
+                return createNewInstance();
+            default:
+                throw new IllegalStateException("Scope non supporté : " + scope);
+        }
     }
 
-    public Object getPrototypeSeed() throws ReflectiveOperationException{
-            return controllerClasses.getConstructor().newInstance();
+    private Object createNewInstance() throws ReflectiveOperationException {
+        return controllerClass.getDeclaredConstructor().newInstance();
     }
 
-    public void setControllerClasses(Class<?> controllerClasses) {
-        this.controllerClasses = controllerClasses;
-    }
+    public Method getReflectMethod() { return reflectMethod; }
 
-     public Method getReflectMethod() {
-        return reflectMethod;
-    }
-
-    public void setReflectMethod(Method reflectMethod) {
-        this.reflectMethod = reflectMethod;
-    }
-    
-    @Override
-    public String toString() {
-        return "UrlControllerMap [method=" + reflectMethod + ", controllerClasses=" + controllerClasses + "]";
-    }
-
- 
-
+  
 }
