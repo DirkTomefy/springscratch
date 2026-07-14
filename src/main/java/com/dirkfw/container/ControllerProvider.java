@@ -3,11 +3,10 @@ package com.dirkfw.container;
 
 import jakarta.servlet.ServletContext;
 
-public abstract class BeanProvider {
+public abstract class ControllerProvider {
 
-    protected ServletContext servletContext;
-    public BeanProvider(ServletContext context){
-        servletContext=context;
+    public ControllerProvider(ServletContext context,Object externalContext){
+       
     }
     public abstract <T> T getBean(Class<T> type);
 
