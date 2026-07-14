@@ -59,6 +59,9 @@ public class FrontServletContextListener implements ServletContextListener {
     }
 
     private ControllerProvider createBeanProvider(ServletContext context,Object externalContext) {
+        /*  vérifier si le developpeur ne veut pas
+            utiliser notre conteneur mais son propre conteneur perso
+         */
         try {
             String providerClassName = context.getInitParameter(BEAN_PROVIDER_CLASS);
 
