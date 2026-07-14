@@ -18,6 +18,7 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
     private final BeanProvider beanProvider ;
     private final List<Class<?>> controllerClasses = new ArrayList<>();
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
+    private Object externalContext;
 
     public FrontServletParam(BeanProvider beanProvider){
         this.beanProvider=beanProvider;
@@ -52,4 +53,18 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
     public HashMap<UrlKey, UrlControllerMap> getUrlMapps() {
         return urlMapps;
     }
+
+        public BeanProvider getBeanProvider() {
+        return beanProvider;
+    }
+
+    
+    public Object getExternalContext() {
+        return externalContext;
+    }
+
+    public void setExternalContext(Object externalContext) {
+        this.externalContext = externalContext;
+    }
+
 }

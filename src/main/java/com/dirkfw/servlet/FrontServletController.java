@@ -2,6 +2,8 @@ package com.dirkfw.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Map;
 
 import com.dirkfw.core.FrontServletParam;
@@ -39,16 +41,54 @@ public class FrontServletController extends HttpServlet {
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
         UrlKey urlKey = new UrlKey(urlString, method);
         verifyIsValidUrl(urlKey);
-        UrlControllerMap map = this.urlProcessor.getUrlMapps().get(urlKey);
-        Object maybeModelAndView = map.getReflectMethod().invoke(map.getControllerInstance(request));
+        UrlControllerMap map = urlProcessor.getUrlMapps().get(urlKey);
+        Object controller = map.getControllerInstance(request);
+        Method controllerMethod = map.getReflectMethod();
 
-        if(maybeModelAndView == null)
-            return;
-        
+        Object[] args = buildMethodArguments(controllerMethod, request, response);
+        Object maybeModelAndView = controllerMethod.invoke(controller, args);
+
+        if (maybeModelAndView == null) return;
+
         if (maybeModelAndView instanceof ModelAndView) {
             ModelAndView mav = (ModelAndView) maybeModelAndView;
             handleModelAndView(mav, request, response);
         }
+    }
+
+    
+    private Object[] buildMethodArguments(Method method, HttpServletRequest request, HttpServletResponse response) {
+        Parameter[] parameters = method.getParameters();
+        Object[] args = new Object[parameters.length];
+
+        Class<?> applicationContextClass = null;
+        try {
+            applicationContextClass = Class.forName("org.springframework.context.ApplicationContext");
+        } catch (ClassNotFoundException ignored) {
+        }
+
+        for (int i = 0; i < parameters.length; i++) {
+            Class<?> paramType = parameters[i].getType();
+
+            if (paramType == HttpServletRequest.class) {
+                args[i] = request;
+            } else if (paramType == HttpServletResponse.class) {
+                args[i] = response;
+            } else if (applicationContextClass != null && applicationContextClass.isAssignableFrom(paramType)) {
+                args[i] = urlProcessor.getExternalContext();
+                if (args[i] == null) {
+                    throw new IllegalArgumentException(
+                        "Le paramètre " + paramType.getName() + " est demandé mais le contexte Spring n'est pas configuré."
+                    );
+                }
+            } else {
+                throw new IllegalArgumentException(
+                    "Paramètre de type non supporté : " + paramType.getName()
+                    + " dans la méthode " + method.getName()
+                );
+            }
+        }
+        return args;
     }
 
     private void verifyIsValidUrl(UrlKey urlKey) throws UrlNotSupportedException {
