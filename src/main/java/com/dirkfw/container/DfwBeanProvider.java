@@ -8,10 +8,10 @@ import com.dirkfw.annotation.scope.PrototypeScope;
 
 import jakarta.servlet.ServletContext;
 
-public class DfwBeanProvider extends BeanProvider {
+public class DfwBeanProvider extends ControllerProvider {
 
-    public DfwBeanProvider(ServletContext context) {
-        super(context);
+    public DfwBeanProvider(ServletContext context,Object externalContext) {
+        super(context,externalContext);
     }
 
 

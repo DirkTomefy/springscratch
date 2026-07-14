@@ -7,7 +7,7 @@ import java.util.List;
 
 import com.dirkfw.annotation.Controller;
 import com.dirkfw.annotation.UrlMapping;
-import com.dirkfw.container.BeanProvider;
+import com.dirkfw.container.ControllerProvider;
 import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlControllerMap;
 import com.dirkfw.exception.UrlAlreadyDefinedException;
@@ -15,12 +15,14 @@ import com.dirkfw.util.AnnotatedClassesProcessor;
 
 public class FrontServletParam implements AnnotatedClassesProcessor {
 
-    private final BeanProvider beanProvider ;
+    private final ControllerProvider beanProvider ;
     private final List<Class<?>> controllerClasses = new ArrayList<>();
     private final HashMap<UrlKey, UrlControllerMap> urlMapps = new HashMap<>();
+    private Object externalContext;
 
-    public FrontServletParam(BeanProvider beanProvider){
+    public FrontServletParam(ControllerProvider beanProvider,Object externalContext){
         this.beanProvider=beanProvider;
+        this.externalContext=externalContext;
     }
     @Override
     public void processAnnotatedClass(Class<?> clazz) throws Exception {
@@ -52,4 +54,18 @@ public class FrontServletParam implements AnnotatedClassesProcessor {
     public HashMap<UrlKey, UrlControllerMap> getUrlMapps() {
         return urlMapps;
     }
+
+        public ControllerProvider getBeanProvider() {
+        return beanProvider;
+    }
+
+    
+    public Object getExternalContext() {
+        return externalContext;
+    }
+
+    public void setExternalContext(Object externalContext) {
+        this.externalContext = externalContext;
+    }
+
 }
