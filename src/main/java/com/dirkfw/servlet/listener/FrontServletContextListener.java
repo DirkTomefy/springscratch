@@ -59,9 +59,6 @@ public class FrontServletContextListener implements ServletContextListener {
     }
 
     private ControllerProvider createBeanProvider(ServletContext context,Object externalContext) {
-        /*  vérifier si le developpeur ne veut pas
-            utiliser notre conteneur mais son propre conteneur perso
-         */
         try {
             String providerClassName = context.getInitParameter(BEAN_PROVIDER_CLASS);
 
@@ -110,7 +107,7 @@ public class FrontServletContextListener implements ServletContextListener {
                     (Object) new Class<?>[]{configurationClass});
 
         } catch (Exception e) {
-            throw new RuntimeException(
+                throw new RuntimeException(
                     "Impossible d'initialiser le contexte Spring.", e);
         }
     }

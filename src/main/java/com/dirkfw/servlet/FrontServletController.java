@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Map;
 
+import com.dirkfw.annotation.JsonResponse;
 import com.dirkfw.core.FrontServletParam;
 import com.dirkfw.mapping.UrlHTTPMethod;
 import com.dirkfw.mapping.UrlKey;
@@ -18,6 +19,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FrontServletController extends HttpServlet {
 
@@ -46,14 +48,16 @@ public class FrontServletController extends HttpServlet {
         Method controllerMethod = map.getReflectMethod();
 
         Object[] args = buildMethodArguments(controllerMethod, request, response);
-        Object maybeModelAndView = controllerMethod.invoke(controller, args);
+        Object returnValueObject = controllerMethod.invoke(controller, args);
 
-        if (maybeModelAndView == null) return;
+       if (returnValueObject == null) return;
 
-        if (maybeModelAndView instanceof ModelAndView) {
-            ModelAndView mav = (ModelAndView) maybeModelAndView;
-            handleModelAndView(mav, request, response);
-        }
+if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
+    handleJsonResponse(controllerMethod, returnValueObject, request, response);
+} else if (returnValueObject instanceof ModelAndView) {
+    ModelAndView mav = (ModelAndView) returnValueObject;
+    handleModelAndView(mav, request, response);
+}
     }
 
     
@@ -106,6 +110,30 @@ public class FrontServletController extends HttpServlet {
 
         request.getRequestDispatcher(path).forward(request, response);
     }
+
+   private void handleJsonResponse(Method method,
+                                Object returnValue,
+                                HttpServletRequest request,
+                                HttpServletResponse response) throws IOException {
+
+    JsonResponse annotation = method.getAnnotation(JsonResponse.class);
+    String json;
+    if (annotation.isRawString()) {
+        json = String.valueOf(returnValue);
+    } else {
+        ObjectMapper mapper = new ObjectMapper();
+        json = mapper.writeValueAsString(returnValue);
+    }
+
+    response.setContentType("application/json");
+    response.setCharacterEncoding("UTF-8");
+    response.setStatus(HttpServletResponse.SC_OK);
+
+    try (PrintWriter out = response.getWriter()) {
+        out.write(json);
+        out.flush();
+    }
+}
 
     private String getRequestedUrl(HttpServletRequest request) {
         String uri = request.getRequestURI();

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TOMCAT_PATH="/home/tomefy/Documents/tomcat/tomcat"
+TOMCAT_PATH="/home/tomefy/Documents/tomcat"
 
 echo "Construction du projet..."
 mvn clean package
