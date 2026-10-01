@@ -3,8 +3,7 @@ package com.dirkfw.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.Map;
+
 
 import com.dirkfw.annotation.JsonResponse;
 import com.dirkfw.core.FrontServletParam;
@@ -19,22 +18,26 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FrontServletController extends HttpServlet {
 
-   
     String prefixOfView;
     String suffixOfView;
-    private FrontServletParam urlProcessor;
+    FrontServletParam frontServletParam;
 
     @Override
     public void init() throws ServletException {
-        urlProcessor = (FrontServletParam) getServletContext()
+        frontServletParam = (FrontServletParam) getServletContext()
                 .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
 
         prefixOfView = (String) this.getServletContext().getAttribute(FrontServletContextListener.VIEW_PREFIX);
         suffixOfView = (String) this.getServletContext().getAttribute(FrontServletContextListener.VIEW_SUFFIX);
+    }
+
+    public static String getRequestedUrl(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String context = request.getContextPath();
+        return uri.substring(context.length());
     }
 
     private void executeRequest(HttpServletRequest request, HttpServletResponse response)
@@ -43,103 +46,28 @@ public class FrontServletController extends HttpServlet {
         UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
         UrlKey urlKey = new UrlKey(urlString, method);
         verifyIsValidUrl(urlKey);
-        UrlControllerMap map = urlProcessor.getUrlMapps().get(urlKey);
+        UrlControllerMap map = frontServletParam.getUrlMapps().get(urlKey);
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
 
-        Object[] args = buildMethodArguments(controllerMethod, request, response);
+        Object[] args = FrontServletExecuterHelper.buildMethodArguments(this, controllerMethod, request, response);
         Object returnValueObject = controllerMethod.invoke(controller, args);
 
-       if (returnValueObject == null) return;
+        if (returnValueObject == null)
+            return;
 
-if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
-    handleJsonResponse(controllerMethod, returnValueObject, request, response);
-} else if (returnValueObject instanceof ModelAndView) {
-    ModelAndView mav = (ModelAndView) returnValueObject;
-    handleModelAndView(mav, request, response);
-}
-    }
-
-    
-   
-    private Object[] buildMethodArguments(Method method, HttpServletRequest request, HttpServletResponse response) {
-        Parameter[] parameters = method.getParameters();
-        Object[] args = new Object[parameters.length];
-
-        Class<?> applicationContextClass = null;
-        try {
-            applicationContextClass = Class.forName("org.springframework.context.ApplicationContext");
-        } catch (ClassNotFoundException ignored) {
+        if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
+            FrontServletExecuterHelper.handleJsonResponse(controllerMethod, returnValueObject, request, response);
+        } else if (returnValueObject instanceof ModelAndView) {
+            ModelAndView mav = (ModelAndView) returnValueObject;
+            FrontServletExecuterHelper.handleModelAndView(this, mav, request, response);
         }
-
-        for (int i = 0; i < parameters.length; i++) {
-            Class<?> paramType = parameters[i].getType();
-
-            if (paramType == HttpServletRequest.class) {
-                args[i] = request;
-            } else if (paramType == HttpServletResponse.class) {
-                args[i] = response;
-            } else if (applicationContextClass != null && applicationContextClass.isAssignableFrom(paramType)) {
-                args[i] = urlProcessor.getExternalContext();
-                if (args[i] == null) {
-                    throw new IllegalArgumentException(
-                        "Le paramètre " + paramType.getName() + " est demandé mais le contexte Spring n'est pas configuré."
-                    );
-                }
-            } else {
-                throw new IllegalArgumentException(
-                    "Paramètre de type non supporté : " + paramType.getName()
-                    + " dans la méthode " + method.getName()
-                );
-            }
-        }
-        return args;
     }
 
     private void verifyIsValidUrl(UrlKey urlKey) throws UrlNotSupportedException {
-        if (!this.urlProcessor.getUrlMapps().containsKey(urlKey))
-            throw new UrlNotSupportedException(urlKey, urlProcessor.getUrlMapps());
+        if (!this.frontServletParam.getUrlMapps().containsKey(urlKey))
+            throw new UrlNotSupportedException(urlKey, frontServletParam.getUrlMapps());
 
-    }
-
-    private void handleModelAndView(ModelAndView mav, HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        for (Map.Entry<String, Object> attr : mav.getAttributes().entrySet()) {
-            request.setAttribute(attr.getKey(), attr.getValue());
-        }
-        String path = this.prefixOfView + mav.getViewName() + this.suffixOfView;
-
-        request.getRequestDispatcher(path).forward(request, response);
-    }
-
-   private void handleJsonResponse(Method method,
-                                Object returnValue,
-                                HttpServletRequest request,
-                                HttpServletResponse response) throws IOException {
-
-    JsonResponse annotation = method.getAnnotation(JsonResponse.class);
-    String json;
-    if (annotation.isRawString()) {
-        json = String.valueOf(returnValue);
-    } else {
-        ObjectMapper mapper = new ObjectMapper();
-        json = mapper.writeValueAsString(returnValue);
-    }
-
-    response.setContentType("application/json");
-    response.setCharacterEncoding("UTF-8");
-    response.setStatus(HttpServletResponse.SC_OK);
-
-    try (PrintWriter out = response.getWriter()) {
-        out.write(json);
-        out.flush();
-    }
-}
-
-    private String getRequestedUrl(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        String context = request.getContextPath();
-        return uri.substring(context.length());
     }
 
     @Override
