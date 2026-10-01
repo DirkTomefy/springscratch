@@ -16,6 +16,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FrontServletExecuterHelper {
+
+    public static final String applicationContextClassName = "org.springframework.context.ApplicationContext";
     public static Object[] buildMethodArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
         Parameter[] parameters = method.getParameters();
@@ -23,7 +25,7 @@ public class FrontServletExecuterHelper {
 
         Class<?> applicationContextClass = null;
         try {
-            applicationContextClass = Class.forName("org.springframework.context.ApplicationContext");
+            applicationContextClass = Class.forName(applicationContextClassName);
         } catch (ClassNotFoundException ignored) {
         }
 
