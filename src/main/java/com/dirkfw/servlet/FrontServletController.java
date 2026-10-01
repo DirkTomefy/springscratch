@@ -50,17 +50,17 @@ public class FrontServletController extends HttpServlet {
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
 
-        Object[] args = FrontServletExecuterHelper.buildMethodArguments(this, controllerMethod, request, response);
+        Object[] args = FrontServletExecuterHelper.resolveArguments(this, controllerMethod, request, response);
         Object returnValueObject = controllerMethod.invoke(controller, args);
 
         if (returnValueObject == null)
             return;
 
         if (controllerMethod.isAnnotationPresent(JsonResponse.class)) {
-            FrontServletExecuterHelper.handleJsonResponse(controllerMethod, returnValueObject, request, response);
+            FrontServletExecuterHelper.writeJson(controllerMethod, returnValueObject, request, response);
         } else if (returnValueObject instanceof ModelAndView) {
             ModelAndView mav = (ModelAndView) returnValueObject;
-            FrontServletExecuterHelper.handleModelAndView(this, mav, request, response);
+            FrontServletExecuterHelper.forwardToView(this, mav, request, response);
         }
     }
 

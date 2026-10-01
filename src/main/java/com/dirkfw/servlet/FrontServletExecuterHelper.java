@@ -4,10 +4,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Map;
 
 import com.dirkfw.annotation.JsonResponse;
-
+import com.dirkfw.annotation.RequestParam;
+import com.dirkfw.exception.FrontServletExecuterException;
 import com.dirkfw.mapping.ModelAndView;
 
 import jakarta.servlet.ServletException;
@@ -17,65 +20,115 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FrontServletExecuterHelper {
 
-    public static final String applicationContextClassName = "org.springframework.context.ApplicationContext";
-    public static Object[] buildMethodArguments(FrontServletController controller, Method method,
+    private static final String SPRING_CONTEXT_CLASS = "org.springframework.context.ApplicationContext";
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+
+    public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
+
         Parameter[] parameters = method.getParameters();
         Object[] args = new Object[parameters.length];
-
-        Class<?> applicationContextClass = null;
-        try {
-            applicationContextClass = Class.forName(applicationContextClassName);
-        } catch (ClassNotFoundException ignored) {
-        }
+        Class<?> springContext = loadSpringContext();
 
         for (int i = 0; i < parameters.length; i++) {
-            Class<?> paramType = parameters[i].getType();
-
-            if (paramType == HttpServletRequest.class) {
-                args[i] = request;
-            } else if (paramType == HttpServletResponse.class) {
-                args[i] = response;
-            } else if (applicationContextClass != null && applicationContextClass.isAssignableFrom(paramType)) {
-                args[i] = controller.frontServletParam.getExternalContext();
-                if (args[i] == null) {
-                    throw new IllegalArgumentException(
-                            "Le paramètre " + paramType.getName()
-                                    + " est demandé mais le contexte Spring n'est pas configuré.");
-                }
-            } else {
-                throw new IllegalArgumentException(
-                        "Paramètre de type non supporté : " + paramType.getName()
-                                + " dans la méthode " + method.getName());
-            }
+            args[i] = resolveArgument(parameters[i], controller, request, response, springContext);
         }
         return args;
     }
 
-    public static void handleModelAndView(FrontServletController controller, ModelAndView mav,
+    private static Object resolveArgument(Parameter parameter, FrontServletController controller,
+            HttpServletRequest request, HttpServletResponse response, Class<?> springContext) {
+
+        RequestParam rp = parameter.getAnnotation(RequestParam.class);
+        if (rp != null) return readRequestParam(parameter, rp, request);
+
+        Class<?> type = parameter.getType();
+        if (type == HttpServletRequest.class)  return request;
+        if (type == HttpServletResponse.class) return response;
+
+        if (springContext != null && springContext.isAssignableFrom(type)) {
+            Object ctx = controller.frontServletParam.getExternalContext();
+            if (ctx == null) throw FrontServletExecuterException.springContextNotConfigured(type);
+            return ctx;
+        }
+
+        throw FrontServletExecuterException.unsupportedParameter(parameter);
+    }
+
+
+    private static Object readRequestParam(Parameter parameter, RequestParam rp,
+            HttpServletRequest request) {
+
+        String name = rp.name().isBlank() ? parameter.getName() : rp.name();
+        String value = request.getParameter(name);
+
+        if (value == null) {
+            if (rp.isRequired()) throw FrontServletExecuterException.missingParam(name);
+            return defaultValue(parameter.getType());
+        }
+        return convert(value, parameter.getType(), name);
+    }
+
+    private static Object defaultValue(Class<?> type) {
+        if (!type.isPrimitive()) return null;
+        if (type == boolean.class) return false;
+        if (type == char.class)    return '\0';
+        if (type == byte.class)    return (byte) 0;
+        if (type == short.class)   return (short) 0;
+        if (type == int.class)     return 0;
+        if (type == long.class)    return 0L;
+        if (type == float.class)   return 0f;
+        if (type == double.class)  return 0d;
+        return null;
+    }
+
+    private static Object convert(String value, Class<?> type, String name) {
+        try {
+            if (type == String.class)                            return value;
+            if (type == int.class     || type == Integer.class)  return Integer.parseInt(value);
+            if (type == long.class    || type == Long.class)     return Long.parseLong(value);
+            if (type == double.class  || type == Double.class)   return Double.parseDouble(value);
+            if (type == float.class   || type == Float.class)    return Float.parseFloat(value);
+            if (type == boolean.class || type == Boolean.class)  return Boolean.parseBoolean(value);
+            if (type == short.class   || type == Short.class)    return Short.parseShort(value);
+            if (type == byte.class    || type == Byte.class)     return Byte.parseByte(value);
+
+            if (type == char.class || type == Character.class) {
+                if (value.length() != 1)
+                    throw FrontServletExecuterException.invalidValue(
+                            name, value, new IllegalArgumentException("un seul caractère attendu"));
+                return value.charAt(0);
+            }
+
+            if (type == BigDecimal.class) return new BigDecimal(value);
+            if (type == BigInteger.class) return new BigInteger(value);
+
+        } catch (NumberFormatException e) {
+            throw FrontServletExecuterException.invalidValue(name, value, e);
+        }
+        throw FrontServletExecuterException.unsupportedType(type);
+    }
+
+
+    public static void forwardToView(FrontServletController controller, ModelAndView mav,
             HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         for (Map.Entry<String, Object> attr : mav.getAttributes().entrySet()) {
             request.setAttribute(attr.getKey(), attr.getValue());
         }
         String path = controller.prefixOfView + mav.getViewName() + controller.suffixOfView;
-
         request.getRequestDispatcher(path).forward(request, response);
     }
 
-    public static void handleJsonResponse(Method method,
-            Object returnValue,
-            HttpServletRequest request,
-            HttpServletResponse response) throws IOException {
+    public static void writeJson(Method method, Object returnValue,
+            HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         JsonResponse annotation = method.getAnnotation(JsonResponse.class);
-        String json;
-        if (annotation.isRawString()) {
-            json = String.valueOf(returnValue);
-        } else {
-            ObjectMapper mapper = new ObjectMapper();
-            json = mapper.writeValueAsString(returnValue);
-        }
+        String json = annotation.isRawString()
+                ? String.valueOf(returnValue)
+                : JSON.writeValueAsString(returnValue);
 
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -83,9 +136,15 @@ public class FrontServletExecuterHelper {
 
         try (PrintWriter out = response.getWriter()) {
             out.write(json);
-            out.flush();
         }
     }
 
-    
+
+    private static Class<?> loadSpringContext() {
+        try {
+            return Class.forName(SPRING_CONTEXT_CLASS);
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
 }
