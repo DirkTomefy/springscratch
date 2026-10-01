@@ -1,0 +1,9 @@
+package com.dirkfw.annotation;
+
+import java.lang.annotation.*;
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RequestParam {
+    String name() default "";
+    boolean isRequired() default true;
+}
