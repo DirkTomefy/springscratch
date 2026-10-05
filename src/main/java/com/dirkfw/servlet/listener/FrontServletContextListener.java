@@ -62,7 +62,7 @@ public class FrontServletContextListener implements ServletContextListener {
         try {
             String providerClassName = context.getInitParameter(BEAN_PROVIDER_CLASS);
 
-            if (providerClassName == null || providerClassName.isBlank()) {
+            if (providerClassName == null || providerClassName.trim().isEmpty()) {
                 return new DfwBeanProvider(context,externalContext);
             }
 
@@ -88,7 +88,7 @@ public class FrontServletContextListener implements ServletContextListener {
 
         String configClassName = context.getInitParameter(SPRING_CONFIGURATION);
 
-        if (configClassName == null || configClassName.isBlank()) {
+        if (configClassName == null || configClassName.trim().isEmpty()) {
             return null;
         }
 

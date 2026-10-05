@@ -52,7 +52,7 @@ public class ScanUtil {
 
 
     private static String joinPackage(String packageName, String name) {
-        if (packageName == null || packageName.isBlank()) {
+        if (packageName == null || packageName.trim().isEmpty()) {
             return name;
         }
         return packageName + "." + name;

@@ -69,7 +69,7 @@ public class FrontServletExecuterHelper {
             name = parameter.getName();
             required = false;
         } else {
-            name = rp.name().isBlank() ? parameter.getName() : rp.name();
+            name = rp.name().trim().isEmpty() ? parameter.getName() : rp.name();
             required = rp.isRequired();
         }
 
