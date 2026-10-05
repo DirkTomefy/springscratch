@@ -6,6 +6,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 import com.dirkfw.annotation.JsonResponse;
@@ -56,6 +60,7 @@ public class FrontServletExecuterHelper {
             return ctx;
         }
 
+        
         return readRequestParam(parameter, null, request);
     }
 
@@ -136,7 +141,16 @@ public class FrontServletExecuterHelper {
             if (type == BigInteger.class)
                 return new BigInteger(value);
 
+            if (type == LocalDate.class)
+                return LocalDate.parse(value);
+            if (type == LocalTime.class)
+                return LocalTime.parse(value);
+            if (type == LocalDateTime.class)
+                return LocalDateTime.parse(value);
+
         } catch (NumberFormatException e) {
+            throw FrontServletExecuterException.invalidValue(name, value, e);
+        } catch (DateTimeParseException e) {
             throw FrontServletExecuterException.invalidValue(name, value, e);
         }
         throw FrontServletExecuterException.unsupportedType(type);
