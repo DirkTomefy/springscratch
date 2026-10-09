@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.dirkfw.annotation.JsonResponse;
+import com.dirkfw.annotation.ObjectParam;
 import com.dirkfw.annotation.RequestParam;
 import com.dirkfw.exception.FrontServletExecuterException;
 import com.dirkfw.mapping.ModelAndView;
@@ -35,7 +36,10 @@ public class FrontServletExecuterHelper {
     private static final Set<String> BLOCKED_FIELDS =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("class")));
 
-   
+    // ------------------------------------------------------------------
+    // Résolution des arguments
+    // ------------------------------------------------------------------
+
     public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
 
@@ -73,19 +77,24 @@ public class FrontServletExecuterHelper {
         if (isSimpleType(type))
             return readRequestParam(parameter, null, request);
 
-       
-        String prefix = parameter.getName();
+        ObjectParam op = parameter.getAnnotation(ObjectParam.class);
+        String prefix;
 
-        if (prefix == null || prefix.isEmpty() || prefix.startsWith("arg")) {
-            System.err.println("[dirkfw] Nom de paramètre non fiable pour " + parameter
-                    + " (compilez avec -parameters).");
+        if (op != null && !op.name().trim().isEmpty()) {
+            prefix = op.name().trim();
+        } else {
+            prefix = parameter.getName();
+            if (prefix == null || prefix.isEmpty() || prefix.startsWith("arg")) {
+                System.err.println("[dirkfw] Nom de paramètre non fiable pour " + parameter
+                        + " — ajoutez @ObjectParam(name=\"...\") "
+                        + "ou compilez avec -parameters.");
+            }
         }
 
         return bindObject(type, request, prefix);
     }
 
-
-
+    
     private static Object readRequestParam(Parameter parameter, RequestParam rp,
             HttpServletRequest request) {
 
@@ -170,7 +179,7 @@ public class FrontServletExecuterHelper {
             || type.isEnum();
     }
 
-  
+    
     private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix) {
         Object instance;
         try {
@@ -192,7 +201,7 @@ public class FrontServletExecuterHelper {
         return instance;
     }
 
- 
+   
     private static Map<String, String> stripPrefix(Map<String, String> flat, String prefix) {
         String p = prefix + ".";
         Map<String, String> out = new LinkedHashMap<String, String>();
@@ -333,7 +342,6 @@ public class FrontServletExecuterHelper {
         return subInstance;
     }
 
-  
     public static void forwardToView(FrontServletController controller, ModelAndView mav,
             HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
