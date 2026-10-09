@@ -35,6 +35,7 @@ public class FrontServletExecuterHelper {
     private static final Set<String> BLOCKED_FIELDS =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("class")));
 
+   
     public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
 
@@ -72,8 +73,18 @@ public class FrontServletExecuterHelper {
         if (isSimpleType(type))
             return readRequestParam(parameter, null, request);
 
-        return bindObject(type, request);
+       
+        String prefix = parameter.getName();
+
+        if (prefix == null || prefix.isEmpty() || prefix.startsWith("arg")) {
+            System.err.println("[dirkfw] Nom de paramètre non fiable pour " + parameter
+                    + " (compilez avec -parameters).");
+        }
+
+        return bindObject(type, request, prefix);
     }
+
+
 
     private static Object readRequestParam(Parameter parameter, RequestParam rp,
             HttpServletRequest request) {
@@ -159,7 +170,8 @@ public class FrontServletExecuterHelper {
             || type.isEnum();
     }
 
-    private static Object bindObject(Class<?> type, HttpServletRequest request) {
+  
+    private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix) {
         Object instance;
         try {
             instance = type.getDeclaredConstructor().newInstance();
@@ -169,11 +181,27 @@ public class FrontServletExecuterHelper {
                             + " : constructeur sans argument manquant ?", e);
         }
 
-        Map<String, Map<String, String>> grouped =
-                groupByFirstSegment(toFlatMap(request.getParameterMap()));
+        Map<String, String> flat = toFlatMap(request.getParameterMap());
 
+        if (prefix != null && !prefix.isEmpty()) {
+            flat = stripPrefix(flat, prefix);
+        }
+
+        Map<String, Map<String, String>> grouped = groupByFirstSegment(flat);
         applyGrouped(instance, type, grouped);
         return instance;
+    }
+
+ 
+    private static Map<String, String> stripPrefix(Map<String, String> flat, String prefix) {
+        String p = prefix + ".";
+        Map<String, String> out = new LinkedHashMap<String, String>();
+        for (Map.Entry<String, String> e : flat.entrySet()) {
+            if (e.getKey().startsWith(p)) {
+                out.put(e.getKey().substring(p.length()), e.getValue());
+            }
+        }
+        return out;
     }
 
     private static Map<String, String> toFlatMap(Map<String, String[]> params) {
@@ -305,6 +333,7 @@ public class FrontServletExecuterHelper {
         return subInstance;
     }
 
+  
     public static void forwardToView(FrontServletController controller, ModelAndView mav,
             HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
