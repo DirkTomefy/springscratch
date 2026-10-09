@@ -4,18 +4,23 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import com.dirkfw.annotation.JsonResponse;
 import com.dirkfw.annotation.ObjectParam;
@@ -41,7 +46,7 @@ public class FrontServletExecuterHelper {
     private static final Set<String> BLOCKED_FIELDS =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("class")));
 
-   
+ 
     public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
 
@@ -64,10 +69,12 @@ public class FrontServletExecuterHelper {
 
         Class<?> type = parameter.getType();
 
-        if (type == HttpServletRequest.class)
-            return request;
-        if (type == HttpServletResponse.class)
-            return response;
+        if (type == HttpServletRequest.class)  return request;
+        if (type == HttpServletResponse.class) return response;
+
+        if (List.class.isAssignableFrom(type)) {
+            return bindList(parameter, request);
+        }
 
         if (springContext != null && springContext.isAssignableFrom(type)) {
             Object ctx = controller.frontServletParam.getExternalContext();
@@ -79,24 +86,108 @@ public class FrontServletExecuterHelper {
         if (isSimpleType(type))
             return readRequestParam(parameter, null, request);
 
-        ObjectParam op = parameter.getAnnotation(ObjectParam.class);
-        String prefix;
-
-        if (op != null && !op.name().trim().isEmpty()) {
-            prefix = op.name().trim();
-        } else {
-            prefix = parameter.getName();
-            if (prefix == null || prefix.isEmpty() || prefix.startsWith("arg")) {
-                System.err.println("[dirkfw] Nom de paramètre non fiable pour " + parameter
-                        + " — ajoutez @ObjectParam(name=\"...\") "
-                        + "ou compilez avec -parameters.");
-            }
-        }
-
+        String prefix = determinePrefix(parameter);
         return bindObject(type, request, prefix);
     }
 
-    
+ 
+    private static String determinePrefix(Parameter parameter) {
+        ObjectParam op = parameter.getAnnotation(ObjectParam.class);
+        if (op != null && !op.name().trim().isEmpty()) {
+            return op.name().trim();
+        }
+        String name = parameter.getName();
+        if (name == null || name.isEmpty() || name.startsWith("arg")) {
+            System.err.println("[dirkfw] Nom de paramètre non fiable pour " + parameter
+                    + " — ajoutez @ObjectParam(name=\"...\") "
+                    + "ou compilez avec -parameters.");
+        }
+        return name;
+    }
+
+
+    private static List<Object> bindList(Parameter parameter, HttpServletRequest request) {
+
+        Type genericType = parameter.getParameterizedType();
+        if (!(genericType instanceof ParameterizedType)) {
+            throw new IllegalStateException(
+                    "Le paramètre List doit être typé (List<X>) : " + parameter);
+        }
+        ParameterizedType pt = (ParameterizedType) genericType;
+        Type[] typeArgs = pt.getActualTypeArguments();
+        if (typeArgs.length != 1 || !(typeArgs[0] instanceof Class)) {
+            throw new IllegalStateException(
+                    "Type d'élément de liste non supporté : " + genericType);
+        }
+        Class<?> elementType = (Class<?>) typeArgs[0];
+
+        String prefix = determinePrefix(parameter);
+
+        Map<Integer, Map<String, String>> indexed = extractIndexedFields(request, prefix);
+
+        List<Object> result = new ArrayList<>(indexed.size());
+        for (Map.Entry<Integer, Map<String, String>> e : indexed.entrySet()) {
+            result.add(instantiateAndBind(elementType, e.getValue()));
+        }
+        return result;
+    }
+
+    private static Map<Integer, Map<String, String>> extractIndexedFields(
+            HttpServletRequest request, String prefix) {
+
+        Map<Integer, Map<String, String>> result = new TreeMap<>();
+        String marker = prefix + "[";
+
+        for (Map.Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
+            String name = entry.getKey();
+
+            if (!name.startsWith(marker)) continue;
+
+            int close = name.indexOf(']', marker.length());
+            if (close < 0) continue;
+
+            String indexStr = name.substring(marker.length(), close);
+            int index;
+            try {
+                index = Integer.parseInt(indexStr);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+
+            String rest = name.substring(close + 1);
+            if (rest.startsWith(".")) {
+                rest = rest.substring(1);
+            }
+            if (rest.isEmpty()) continue;
+
+            String[] values = entry.getValue();
+            if (values == null || values.length == 0
+                    || values[0] == null || values[0].trim().isEmpty()) {
+                continue;
+            }
+
+            result.computeIfAbsent(index, k -> new LinkedHashMap<>())
+                  .put(rest, values[0]);
+        }
+        return result;
+    }
+
+    private static Object instantiateAndBind(Class<?> type, Map<String, String> fields) {
+        Object instance;
+        try {
+            instance = type.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Impossible d'instancier " + type.getName()
+                            + " : constructeur sans argument manquant ?", e);
+        }
+
+        Map<String, Map<String, String>> grouped = groupByFirstSegment(fields);
+        applyGrouped(instance, type, grouped);
+        return instance;
+    }
+
+   
     private static Object readRequestParam(Parameter parameter, RequestParam rp,
             HttpServletRequest request) {
 
@@ -343,7 +434,6 @@ public class FrontServletExecuterHelper {
         return subInstance;
     }
 
-   
     public static void forwardToView(FrontServletController controller, ModelAndView mav,
             HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
