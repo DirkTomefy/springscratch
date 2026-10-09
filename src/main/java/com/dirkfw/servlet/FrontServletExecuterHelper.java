@@ -22,24 +22,26 @@ import com.dirkfw.annotation.ObjectParam;
 import com.dirkfw.annotation.RequestParam;
 import com.dirkfw.exception.FrontServletExecuterException;
 import com.dirkfw.mapping.ModelAndView;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FrontServletExecuterHelper {
 
     private static final String SPRING_CONTEXT_CLASS = "org.springframework.context.ApplicationContext";
-    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private static final ObjectMapper JSON = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private static final Set<String> BLOCKED_FIELDS =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("class")));
 
-    // ------------------------------------------------------------------
-    // Résolution des arguments
-    // ------------------------------------------------------------------
-
+   
     public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
 
@@ -179,7 +181,7 @@ public class FrontServletExecuterHelper {
             || type.isEnum();
     }
 
-    
+   
     private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix) {
         Object instance;
         try {
@@ -201,7 +203,6 @@ public class FrontServletExecuterHelper {
         return instance;
     }
 
-   
     private static Map<String, String> stripPrefix(Map<String, String> flat, String prefix) {
         String p = prefix + ".";
         Map<String, String> out = new LinkedHashMap<String, String>();
@@ -342,6 +343,7 @@ public class FrontServletExecuterHelper {
         return subInstance;
     }
 
+   
     public static void forwardToView(FrontServletController controller, ModelAndView mav,
             HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
