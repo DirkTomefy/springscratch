@@ -68,7 +68,7 @@ public class DfwMultipartFile {
         return target;
     }
 
-    public static String extractExtension(String filename) {
+    private static String extractExtension(String filename) {
         if (filename == null) return "";
         int dot = filename.lastIndexOf('.');
         if (dot < 0 || dot == filename.length() - 1) return "";
@@ -77,7 +77,14 @@ public class DfwMultipartFile {
         return ext;
     }
 
-  
+    private static String sanitize(String filename) {
+        if (filename == null) return "";
+        String name = filename.replace('\\', '/');
+        int slash = name.lastIndexOf('/');
+        if (slash >= 0) name = name.substring(slash + 1);
+        name = name.replaceAll("[\\p{Cntrl}]", "").trim();
+        return name;
+    }
 
     @Override
     public String toString() {
