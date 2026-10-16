@@ -10,14 +10,18 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.dirkfw.config.ConfigLoader;
+
 public class DfwMultipartFile {
 
     private final String originalFilename;
     private final String contentType;
     private final long size;
     private final byte[] bytes;
+    private final String uploadDir;
 
-    public DfwMultipartFile(Part part) {
+    public DfwMultipartFile(Part part, String uploadDir) {
+        this.uploadDir = uploadDir;
         try {
             this.originalFilename = sanitize(part.getSubmittedFileName());
             this.contentType = part.getContentType();
@@ -35,6 +39,7 @@ public class DfwMultipartFile {
     public String getContentType()      { return contentType; }
     public long   getSize()             { return size; }
     public byte[] getBytes()            { return bytes; }
+    public String getUploadDir()        { return uploadDir; }
     public boolean isEmpty()            { return bytes == null || bytes.length == 0; }
 
     public String getExtension() {
@@ -51,17 +56,23 @@ public class DfwMultipartFile {
         return UUID.randomUUID() + getExtension();
     }
 
-    public void transferTo(String destination) throws IOException {
+    public Path transferTo(String destination) throws IOException {
         Path path = Paths.get(destination);
         Path parent = path.getParent();
         if (parent != null) {
             Files.createDirectories(parent);
         }
         Files.write(path, bytes);
+        return path;
     }
 
-    public Path transferToDirectory(String directory) throws IOException {
-        Path dir = Paths.get(directory);
+    public Path uploadDirectory() throws IOException {
+        if (uploadDir == null || uploadDir.trim().isEmpty()) {
+            throw new IllegalStateException(
+                    "uploadDir non configuré dans dirkfw.propreties ("
+                    + ConfigLoader.UPLOAD_DIR_KEY + ")");
+        }
+        Path dir = Paths.get(uploadDir);
         Files.createDirectories(dir);
         Path target = dir.resolve(generateSafeFilename());
         Files.write(target, bytes);
@@ -89,6 +100,7 @@ public class DfwMultipartFile {
     @Override
     public String toString() {
         return "DfwMultipartFile[" + originalFilename
-                + ", " + contentType + ", " + size + " bytes]";
+                + ", " + contentType + ", " + size + " bytes"
+                + ", uploadDir=" + uploadDir + "]";
     }
 }

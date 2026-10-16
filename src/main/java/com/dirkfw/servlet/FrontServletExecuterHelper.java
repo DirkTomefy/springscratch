@@ -75,7 +75,7 @@ public class FrontServletExecuterHelper {
         if (type == HttpServletResponse.class) return response;
 
         if (type == DfwMultipartFile.class)
-            return readMultipartFile(parameter, request);
+            return readMultipartFile(parameter, request, controller);
 
         if (List.class.isAssignableFrom(type))
             return bindList(parameter, request);
@@ -91,7 +91,7 @@ public class FrontServletExecuterHelper {
             return readRequestParam(parameter, null, request);
 
         String prefix = determinePrefix(parameter);
-        return bindObject(type, request, prefix);
+        return bindObject(type, request, prefix, controller);
     }
 
     private static String determinePrefix(Parameter parameter) {
@@ -154,7 +154,7 @@ public class FrontServletExecuterHelper {
     }
 
     private static DfwMultipartFile readMultipartFile(Parameter parameter,
-            HttpServletRequest request) {
+            HttpServletRequest request, FrontServletController controller) {
 
         String name = resolveParameterName(parameter);
         RequestParam rp = parameter.getAnnotation(RequestParam.class);
@@ -171,7 +171,7 @@ public class FrontServletExecuterHelper {
                 if (required) throw FrontServletExecuterException.missingParam(name);
                 return null;
             }
-            return new DfwMultipartFile(part);
+            return new DfwMultipartFile(part, controller.getUploadDir());
         } catch (Exception e) {
             throw new RuntimeException(
                     "Lecture du fichier '" + name + "' impossible", e);
@@ -179,9 +179,7 @@ public class FrontServletExecuterHelper {
     }
 
     private static void setFileProperties(Object instance, Class<?> type,
-            Map<String, Part> parts) {
-
-        if (parts.isEmpty()) return;
+            Map<String, Part> parts, String uploadDir) {
 
         for (Map.Entry<String, Part> e : parts.entrySet()) {
             String fieldName = e.getKey();
@@ -196,7 +194,7 @@ public class FrontServletExecuterHelper {
                 if (m.getParameterTypes()[0] != DfwMultipartFile.class) continue;
 
                 try {
-                    m.invoke(instance, new DfwMultipartFile(e.getValue()));
+                    m.invoke(instance, new DfwMultipartFile(e.getValue(), uploadDir));
                 } catch (Exception ex) {
                     throw new RuntimeException(
                             "Binding du fichier '" + fieldName + "' échoué", ex);
@@ -225,7 +223,8 @@ public class FrontServletExecuterHelper {
         return scoped;
     }
 
-    private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix) {
+    private static Object bindObject(Class<?> type, HttpServletRequest request,
+            String prefix, FrontServletController controller) {
         Object instance;
         try {
             instance = type.getDeclaredConstructor().newInstance();
@@ -242,7 +241,9 @@ public class FrontServletExecuterHelper {
         applyGrouped(instance, type, grouped);
 
         Map<String, Part> parts = scopedPartMap(toPartMap(request), prefix);
-        setFileProperties(instance, type, parts);
+        if (!parts.isEmpty()) {
+            setFileProperties(instance, type, parts, controller.getUploadDir());
+        }
 
         return instance;
     }
