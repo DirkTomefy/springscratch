@@ -6,6 +6,7 @@ import com.dirkfw.container.ControllerProvider;
 import com.dirkfw.container.DfwBeanProvider;
 import com.dirkfw.core.FrontServletParam;
 import com.dirkfw.util.ScanUtil;
+import com.dirkfw.config.ConfigLoader;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
@@ -16,11 +17,16 @@ import jakarta.servlet.annotation.WebListener;
 public class FrontServletContextListener implements ServletContextListener {
 
     public static final String URL_PROCESSOR_ATTR = "urlProcessor";
-    public static final String VIEW_PREFIX = "VIEW_PREFIX";
-    public static final String VIEW_SUFFIX = "VIEW_SUFFIX";
-    public static final String CONTROLLER_PACKAGE = "CONTROLLER_PACKAGE";
+    public static final String VIEW_PREFIX         = "VIEW_PREFIX";
+    public static final String VIEW_SUFFIX         = "VIEW_SUFFIX";
+    public static final String CONTROLLER_PACKAGE  = "CONTROLLER_PACKAGE";
     public static final String BEAN_PROVIDER_CLASS = "BEAN_PROVIDER";
     public static final String SPRING_CONFIGURATION = "SPRING_CONFIGURATION";
+
+    public static final String CONFIG_LOADER_ATTR  = "dirkfwConfigLoader";
+    public static final String UPLOAD_DIR_ATTR     = "dirkfwUploadDir";
+
+    private Object springContext;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
@@ -30,9 +36,12 @@ public class FrontServletContextListener implements ServletContextListener {
         String viewPrefix = context.getInitParameter(VIEW_PREFIX);
         String viewSuffix = context.getInitParameter(VIEW_SUFFIX);
 
+        ConfigLoader config = loadConfig(context);
+
         Object springContext = createSpringContext(context);
-        ControllerProvider beanProvider = createBeanProvider(context,springContext);
-       
+        this.springContext = springContext;
+
+        ControllerProvider beanProvider = createBeanProvider(context, springContext);
 
         FrontServletParam urlProcessor = createUrlProcessor(
                 controllerPackage,
@@ -45,12 +54,53 @@ public class FrontServletContextListener implements ServletContextListener {
                 urlProcessor,
                 beanProvider,
                 viewPrefix,
-                viewSuffix
+                viewSuffix,
+                config
         );
     }
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
+        if (springContext instanceof AutoCloseable closeable) {
+            try {
+                closeable.close();
+            } catch (Exception e) {
+                sce.getServletContext().log("Fermeture contexte Spring échouée", e);
+            }
+        }
+    }
+
+
+    private ConfigLoader loadConfig(ServletContext context) {
+        try {
+            ConfigLoader loader = new ConfigLoader(
+                    ConfigLoader.DIRKFW_PROPERTIES_FILE);
+
+            String uploadDir = loader.get(ConfigLoader.UPLOAD_DIR_KEY);
+            if (uploadDir == null || uploadDir.trim().isEmpty()) {
+                uploadDir = defaultUploadDir(context);
+                context.log("[dirkfw] '" + ConfigLoader.UPLOAD_DIR_KEY
+                        + "' non défini, fallback : " + uploadDir);
+            } else {
+                uploadDir = uploadDir.trim();
+            }
+            context.setAttribute(UPLOAD_DIR_ATTR, uploadDir);
+
+            return loader;
+
+        } catch (RuntimeException e) {
+            context.log("[dirkfw] " + ConfigLoader.DIRKFW_PROPERTIES_FILE
+                    + " introuvable, utilisation du fallback", e);
+
+            context.setAttribute(UPLOAD_DIR_ATTR, defaultUploadDir(context));
+            return null;
+        }
+    }
+
+    private String defaultUploadDir(ServletContext context) {
+        String base = System.getProperty("catalina.base",
+                System.getProperty("java.io.tmpdir"));
+        return base + "/dirkfw-uploads";
     }
 
     private String getControllerPackage(ServletContext context) {
@@ -58,12 +108,12 @@ public class FrontServletContextListener implements ServletContextListener {
         return value == null ? "" : value;
     }
 
-    private ControllerProvider createBeanProvider(ServletContext context,Object externalContext) {
+    private ControllerProvider createBeanProvider(ServletContext context, Object externalContext) {
         try {
             String providerClassName = context.getInitParameter(BEAN_PROVIDER_CLASS);
 
             if (providerClassName == null || providerClassName.trim().isEmpty()) {
-                return new DfwBeanProvider(context,externalContext);
+                return new DfwBeanProvider(context, externalContext);
             }
 
             Class<?> providerClass = Class.forName(providerClassName);
@@ -74,9 +124,9 @@ public class FrontServletContextListener implements ServletContextListener {
             }
 
             Constructor<?> constructor =
-                    providerClass.getConstructor(ServletContext.class);
+                    providerClass.getConstructor(ServletContext.class, Object.class);
 
-            return (ControllerProvider) constructor.newInstance(context);
+            return (ControllerProvider) constructor.newInstance(context, externalContext);
 
         } catch (Exception e) {
             throw new RuntimeException(
@@ -107,7 +157,7 @@ public class FrontServletContextListener implements ServletContextListener {
                     (Object) new Class<?>[]{configurationClass});
 
         } catch (Exception e) {
-                throw new RuntimeException(
+            throw new RuntimeException(
                     "Impossible d'initialiser le contexte Spring.", e);
         }
     }
@@ -117,7 +167,7 @@ public class FrontServletContextListener implements ServletContextListener {
             ControllerProvider beanProvider,
             Object springContext) {
 
-        FrontServletParam processor = new FrontServletParam(beanProvider,springContext);
+        FrontServletParam processor = new FrontServletParam(beanProvider, springContext);
 
         try {
             ScanUtil.fillUrlProcessor(controllerPackage, processor);
@@ -134,11 +184,16 @@ public class FrontServletContextListener implements ServletContextListener {
             FrontServletParam processor,
             ControllerProvider beanProvider,
             String viewPrefix,
-            String viewSuffix) {
+            String viewSuffix,
+            ConfigLoader config) {
 
         context.setAttribute(URL_PROCESSOR_ATTR, processor);
         context.setAttribute(VIEW_PREFIX, viewPrefix);
         context.setAttribute(VIEW_SUFFIX, viewSuffix);
         context.setAttribute(BEAN_PROVIDER_CLASS, beanProvider);
+
+        if (config != null) {
+            context.setAttribute(CONFIG_LOADER_ATTR, config);
+        }
     }
 }

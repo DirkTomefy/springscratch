@@ -26,6 +26,7 @@ import com.dirkfw.annotation.JsonResponse;
 import com.dirkfw.annotation.ObjectParam;
 import com.dirkfw.annotation.RequestParam;
 import com.dirkfw.exception.FrontServletExecuterException;
+import com.dirkfw.mapping.DfwMultipartFile;
 import com.dirkfw.mapping.ModelAndView;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 public class FrontServletExecuterHelper {
 
@@ -46,16 +48,16 @@ public class FrontServletExecuterHelper {
     private static final Set<String> BLOCKED_FIELDS =
             Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("class")));
 
- 
+    private static final Class<?> SPRING_CONTEXT = loadSpringContext();
+
     public static Object[] resolveArguments(FrontServletController controller, Method method,
             HttpServletRequest request, HttpServletResponse response) {
 
         Parameter[] parameters = method.getParameters();
         Object[] args = new Object[parameters.length];
-        Class<?> springContext = loadSpringContext();
 
         for (int i = 0; i < parameters.length; i++) {
-            args[i] = resolveArgument(parameters[i], controller, request, response, springContext);
+            args[i] = resolveArgument(parameters[i], controller, request, response, SPRING_CONTEXT);
         }
         return args;
     }
@@ -72,9 +74,11 @@ public class FrontServletExecuterHelper {
         if (type == HttpServletRequest.class)  return request;
         if (type == HttpServletResponse.class) return response;
 
-        if (List.class.isAssignableFrom(type)) {
+        if (type == DfwMultipartFile.class)
+            return readMultipartFile(parameter, request, controller);
+
+        if (List.class.isAssignableFrom(type))
             return bindList(parameter, request);
-        }
 
         if (springContext != null && springContext.isAssignableFrom(type)) {
             Object ctx = controller.frontServletParam.getExternalContext();
@@ -87,10 +91,9 @@ public class FrontServletExecuterHelper {
             return readRequestParam(parameter, null, request);
 
         String prefix = determinePrefix(parameter);
-        return bindObject(type, request, prefix);
+        return bindObject(type, request, prefix, controller);
     }
 
- 
     private static String determinePrefix(Parameter parameter) {
         ObjectParam op = parameter.getAnnotation(ObjectParam.class);
         if (op != null && !op.name().trim().isEmpty()) {
@@ -105,6 +108,145 @@ public class FrontServletExecuterHelper {
         return name;
     }
 
+    private static String resolveParameterName(Parameter parameter) {
+        RequestParam rp = parameter.getAnnotation(RequestParam.class);
+        if (rp != null && !rp.name().trim().isEmpty()) {
+            return rp.name().trim();
+        }
+        return parameter.getName();
+    }
+
+    private static Map<String, Part> toPartMap(HttpServletRequest request) {
+        Map<String, Part> parts = new LinkedHashMap<>();
+
+        String ct = request.getContentType();
+        if (ct == null || !ct.toLowerCase().startsWith("multipart/")) {
+            return parts;
+        }
+        try {
+            for (Part p : request.getParts()) {
+                if (p.getSubmittedFileName() != null && p.getSize() > 0) {
+                    parts.put(p.getName(), p);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return parts;
+    }
+
+    private static Map<String, Part> scopedPartMap(Map<String, Part> parts, String prefix) {
+        if (prefix == null || prefix.isEmpty()) return parts;
+
+        String p = prefix + ".";
+        Map<String, Part> scoped = new LinkedHashMap<>();
+
+        for (Map.Entry<String, Part> e : parts.entrySet()) {
+            if (e.getKey().startsWith(p)) {
+                scoped.put(e.getKey().substring(p.length()), e.getValue());
+            }
+        }
+        for (Map.Entry<String, Part> e : parts.entrySet()) {
+            if (!e.getKey().contains(".")) {
+                scoped.putIfAbsent(e.getKey(), e.getValue());
+            }
+        }
+        return scoped;
+    }
+
+    private static DfwMultipartFile readMultipartFile(Parameter parameter,
+            HttpServletRequest request, FrontServletController controller) {
+
+        String name = resolveParameterName(parameter);
+        RequestParam rp = parameter.getAnnotation(RequestParam.class);
+        boolean required = rp != null && rp.isRequired();
+
+        String ct = request.getContentType();
+        if (ct == null || !ct.toLowerCase().startsWith("multipart/")) {
+            if (required) throw FrontServletExecuterException.missingParam(name);
+            return null;
+        }
+        try {
+            Part part = request.getPart(name);
+            if (part == null || part.getSize() == 0) {
+                if (required) throw FrontServletExecuterException.missingParam(name);
+                return null;
+            }
+            return new DfwMultipartFile(part, controller.getUploadDir());
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Lecture du fichier '" + name + "' impossible", e);
+        }
+    }
+
+    private static void setFileProperties(Object instance, Class<?> type,
+            Map<String, Part> parts, String uploadDir) {
+
+        for (Map.Entry<String, Part> e : parts.entrySet()) {
+            String fieldName = e.getKey();
+            if (fieldName.isEmpty() || fieldName.contains(".")) continue;
+
+            String setterName = "set"
+                    + Character.toUpperCase(fieldName.charAt(0))
+                    + fieldName.substring(1);
+
+            for (Method m : type.getMethods()) {
+                if (!m.getName().equals(setterName) || m.getParameterCount() != 1) continue;
+                if (m.getParameterTypes()[0] != DfwMultipartFile.class) continue;
+
+                try {
+                    m.invoke(instance, new DfwMultipartFile(e.getValue(), uploadDir));
+                } catch (Exception ex) {
+                    throw new RuntimeException(
+                            "Binding du fichier '" + fieldName + "' échoué", ex);
+                }
+                break;
+            }
+        }
+    }
+
+    private static Map<String, String> scopedStringMap(Map<String, String> flat, String prefix) {
+        if (prefix == null || prefix.isEmpty()) return flat;
+
+        String p = prefix + ".";
+        Map<String, String> scoped = new LinkedHashMap<>();
+
+        for (Map.Entry<String, String> e : flat.entrySet()) {
+            if (e.getKey().startsWith(p)) {
+                scoped.put(e.getKey().substring(p.length()), e.getValue());
+            }
+        }
+        for (Map.Entry<String, String> e : flat.entrySet()) {
+            if (!e.getKey().contains(".")) {
+                scoped.putIfAbsent(e.getKey(), e.getValue());
+            }
+        }
+        return scoped;
+    }
+
+    private static Object bindObject(Class<?> type, HttpServletRequest request,
+            String prefix, FrontServletController controller) {
+        Object instance;
+        try {
+            instance = type.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Impossible d'instancier " + type.getName()
+                            + " : constructeur sans argument manquant ?", e);
+        }
+
+        Map<String, String> flat = toFlatMap(request.getParameterMap());
+        flat = scopedStringMap(flat, prefix);
+
+        Map<String, Map<String, String>> grouped = groupByFirstSegment(flat);
+        applyGrouped(instance, type, grouped);
+
+        Map<String, Part> parts = scopedPartMap(toPartMap(request), prefix);
+        if (!parts.isEmpty()) {
+            setFileProperties(instance, type, parts, controller.getUploadDir());
+        }
+
+        return instance;
+    }
 
     private static List<Object> bindList(Parameter parameter, HttpServletRequest request) {
 
@@ -187,7 +329,6 @@ public class FrontServletExecuterHelper {
         return instance;
     }
 
-   
     private static Object readRequestParam(Parameter parameter, RequestParam rp,
             HttpServletRequest request) {
 
@@ -270,39 +411,6 @@ public class FrontServletExecuterHelper {
             || type == BigDecimal.class || type == BigInteger.class
             || type == LocalDate.class  || type == LocalTime.class || type == LocalDateTime.class
             || type.isEnum();
-    }
-
-   
-    private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix) {
-        Object instance;
-        try {
-            instance = type.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Impossible d'instancier " + type.getName()
-                            + " : constructeur sans argument manquant ?", e);
-        }
-
-        Map<String, String> flat = toFlatMap(request.getParameterMap());
-
-        if (prefix != null && !prefix.isEmpty()) {
-            flat = stripPrefix(flat, prefix);
-        }
-
-        Map<String, Map<String, String>> grouped = groupByFirstSegment(flat);
-        applyGrouped(instance, type, grouped);
-        return instance;
-    }
-
-    private static Map<String, String> stripPrefix(Map<String, String> flat, String prefix) {
-        String p = prefix + ".";
-        Map<String, String> out = new LinkedHashMap<String, String>();
-        for (Map.Entry<String, String> e : flat.entrySet()) {
-            if (e.getKey().startsWith(p)) {
-                out.put(e.getKey().substring(p.length()), e.getValue());
-            }
-        }
-        return out;
     }
 
     private static Map<String, String> toFlatMap(Map<String, String[]> params) {
@@ -453,8 +561,7 @@ public class FrontServletExecuterHelper {
                 ? String.valueOf(returnValue)
                 : JSON.writeValueAsString(returnValue);
 
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);
 
         try (PrintWriter out = response.getWriter()) {
