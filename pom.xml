@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.dirkfw</groupId>
   <artifactId>springscratch</artifactId>
-  <packaging>war</packaging>
+  <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
   <name>springscratch</name>
   <url>http://maven.apache.org</url>
