@@ -28,6 +28,7 @@ import com.dirkfw.annotation.RequestParam;
 import com.dirkfw.exception.FrontServletExecuterException;
 import com.dirkfw.mapping.DfwMultipartFile;
 import com.dirkfw.mapping.ModelAndView;
+import com.dirkfw.session.DfwSession;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 public class FrontServletExecuterHelper {
@@ -74,6 +76,12 @@ public class FrontServletExecuterHelper {
         if (type == HttpServletRequest.class)  return request;
         if (type == HttpServletResponse.class) return response;
 
+        if (type == HttpSession.class)
+            return request.getSession(true);
+
+        if (type == DfwSession.class)
+            return DfwSession.from(request.getSession(true));
+
         if (type == DfwMultipartFile.class)
             return readMultipartFile(parameter, request, controller);
 
@@ -92,6 +100,21 @@ public class FrontServletExecuterHelper {
 
         String prefix = determinePrefix(parameter);
         return bindObject(type, request, prefix, controller);
+    }
+
+    public static void syncDfwSessions(Method method, Object[] args, HttpServletRequest request) {
+        if (args == null) return;
+        Parameter[] parameters = method.getParameters();
+
+        for (int i = 0; i < parameters.length; i++) {
+            if (parameters[i].getType() != DfwSession.class) continue;
+            if (!(args[i] instanceof DfwSession)) continue;
+
+            HttpSession httpSession = request.getSession(false);
+            if (httpSession == null) continue;
+
+            ((DfwSession) args[i]).flushTo(httpSession);
+        }
     }
 
     private static String determinePrefix(Parameter parameter) {

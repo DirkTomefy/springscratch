@@ -34,8 +34,9 @@ public class FrontServletController extends HttpServlet {
                 .getAttribute(FrontServletContextListener.VIEW_PREFIX);
         suffixOfView = (String) getServletContext()
                 .getAttribute(FrontServletContextListener.VIEW_SUFFIX);
-        
-        uploadDir = "";
+
+        uploadDir = (String) getServletContext()
+                .getAttribute(FrontServletContextListener.UPLOAD_DIR_ATTR);
 
         if (frontServletParam == null) {
             throw new ServletException(
@@ -44,9 +45,10 @@ public class FrontServletController extends HttpServlet {
         }
     }
 
-    public String getUploadDir(){
+    public String getUploadDir() {
         return uploadDir;
     }
+
     public static String getRequestedUrl(HttpServletRequest request) {
         String uri = request.getRequestURI();
         String context = request.getContextPath();
@@ -61,9 +63,8 @@ public class FrontServletController extends HttpServlet {
         UrlKey urlKey = new UrlKey(urlString, method);
 
         UrlControllerMap map = frontServletParam.getUrlMapps().get(urlKey);
-        if (map == null) 
+        if (map == null)
             throw new UrlNotSupportedException(urlKey, frontServletParam.getUrlMapps());
-        
 
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
@@ -71,6 +72,8 @@ public class FrontServletController extends HttpServlet {
         Object[] args = FrontServletExecuterHelper.resolveArguments(
                 this, controllerMethod, request, response);
         Object returnValueObject = controllerMethod.invoke(controller, args);
+
+        FrontServletExecuterHelper.syncDfwSessions(controllerMethod, args, request);
 
         if (returnValueObject == null)
             return;
@@ -104,10 +107,16 @@ public class FrontServletController extends HttpServlet {
         try {
             executeRequest(request, response);
         } catch (Exception e) {
-            PrintWriter out = response.getWriter();
-            printError(out, e);
-            e.printStackTrace();
-            out.close();
+            if (response.isCommitted()) {
+                log("[dirkfw] réponse déjà committée, impossible de renvoyer l'erreur", e);
+                return;
+            }
+            response.setContentType("text/html;charset=UTF-8");
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+            try (PrintWriter out = response.getWriter()) {
+                printError(out, e);
+            }
         }
     }
 
