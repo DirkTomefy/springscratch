@@ -1,10 +1,13 @@
 package com.dirkfw.servlet.listener;
 
 import java.lang.reflect.Constructor;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.dirkfw.container.ControllerProvider;
 import com.dirkfw.container.DfwBeanProvider;
 import com.dirkfw.core.FrontServletParam;
+import com.dirkfw.session.DfwSession;
 import com.dirkfw.util.ScanUtil;
 import com.dirkfw.config.ConfigLoader;
 
@@ -12,9 +15,12 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.annotation.WebListener;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionListener;
 
 @WebListener
-public class FrontServletContextListener implements ServletContextListener {
+public class FrontServletContextListener
+        implements ServletContextListener, HttpSessionListener {
 
     public static final String URL_PROCESSOR_ATTR = "urlProcessor";
     public static final String VIEW_PREFIX         = "VIEW_PREFIX";
@@ -25,6 +31,7 @@ public class FrontServletContextListener implements ServletContextListener {
 
     public static final String CONFIG_LOADER_ATTR  = "dirkfwConfigLoader";
     public static final String UPLOAD_DIR_ATTR     = "dirkfwUploadDir";
+    public static final String SESSIONS_ATTR       = "dirkfwSessions";
 
     private Object springContext;
 
@@ -49,6 +56,9 @@ public class FrontServletContextListener implements ServletContextListener {
                 springContext
         );
 
+        Map<String, DfwSession> sessions = new ConcurrentHashMap<>();
+        context.setAttribute(SESSIONS_ATTR, sessions);
+
         registerContextAttributes(
                 context,
                 urlProcessor,
@@ -70,6 +80,15 @@ public class FrontServletContextListener implements ServletContextListener {
         }
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public void sessionDestroyed(HttpSessionEvent se) {
+        Map<String, DfwSession> sessions = (Map<String, DfwSession>)
+                se.getSession().getServletContext().getAttribute(SESSIONS_ATTR);
+        if (sessions != null) {
+            sessions.remove(se.getSession().getId());
+        }
+    }
 
     private ConfigLoader loadConfig(ServletContext context) {
         try {

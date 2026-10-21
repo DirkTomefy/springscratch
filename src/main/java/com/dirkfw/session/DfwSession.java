@@ -11,108 +11,85 @@ import jakarta.servlet.http.HttpSession;
 
 public class DfwSession {
 
-    private final String id;
-    private final long creationTime;
-    private long lastAccessTime;
-    private final Map<String, Object> attributes;
-    private final Set<String> initialKeys;
+    public static final String CURRENT_ATTR = "__DFW_SESSION__";
 
-    public DfwSession(String id) {
-        this.id = id;
-        long now = System.currentTimeMillis();
-        this.creationTime = now;
-        this.lastAccessTime = now;
-        this.attributes = new LinkedHashMap<>();
-        this.initialKeys = new LinkedHashSet<>();
+    private final HttpSession http;
+    private final Map<String, Object> attrs = new LinkedHashMap<>();
+    private final Set<String> initial = new LinkedHashSet<>();
+
+    public DfwSession(HttpSession http) {
+        this.http = http;
     }
 
-    private DfwSession(String id, long creationTime, long lastAccessTime) {
-        this.id = id;
-        this.creationTime = creationTime;
-        this.lastAccessTime = lastAccessTime;
-        this.attributes = new LinkedHashMap<>();
-        this.initialKeys = new LinkedHashSet<>();
-    }
+    public HttpSession getHttp()      { return http; }
+    public String getId()             { return http.getId(); }
+    public long   getCreationTime()   { return http.getCreationTime(); }
+    public long   getLastAccessTime() { return http.getLastAccessedTime(); }
 
-    public static DfwSession from(HttpSession session) {
-        DfwSession dfw = new DfwSession(
-                session.getId(),
-                session.getCreationTime(),
-                session.getLastAccessedTime()
-        );
-        Enumeration<String> names = session.getAttributeNames();
+    public void refresh() {
+        attrs.clear();
+        initial.clear();
+        Enumeration<String> names = http.getAttributeNames();
         while (names.hasMoreElements()) {
-            String name = names.nextElement();
-            dfw.attributes.put(name, session.getAttribute(name));
-            dfw.initialKeys.add(name);
+            String n = names.nextElement();
+            attrs.put(n, http.getAttribute(n));
+            initial.add(n);
         }
-        return dfw;
     }
 
-    public String getId() { return id; }
-    public long getCreationTime() { return creationTime; }
-    public long getLastAccessTime() { return lastAccessTime; }
-
-    public Map<String, Object> getAttributes() {
-        return Collections.unmodifiableMap(attributes);
+    public void flush() {
+        for (String k : initial) {
+            if (!attrs.containsKey(k)) http.removeAttribute(k);
+        }
+        for (Map.Entry<String, Object> e : attrs.entrySet()) {
+            http.setAttribute(e.getKey(), e.getValue());
+        }
     }
 
     public Object getAttribute(String name) {
-        return attributes.get(name);
+        return attrs.get(name);
     }
 
     @SuppressWarnings("unchecked")
     public <T> T getAttribute(String name, Class<T> type) {
-        Object value = attributes.get(name);
-        if (value == null) return null;
-        if (!type.isInstance(value)) {
+        Object v = attrs.get(name);
+        if (v == null) return null;
+        if (!type.isInstance(v)) {
             throw new IllegalStateException(
                     "Attribut '" + name + "' est de type "
-                    + value.getClass().getName()
-                    + ", attendu : " + type.getName());
+                    + v.getClass().getName() + ", attendu : " + type.getName());
         }
-        return (T) value;
+        return (T) v;
     }
 
     public void setAttribute(String name, Object value) {
         if (name == null) throw new IllegalArgumentException("name required");
-        if (value == null) { attributes.remove(name); return; }
-        attributes.put(name, value);
+        initial.add(name);
+        if (value == null) { attrs.remove(name); return; }
+        attrs.put(name, value);
     }
 
     public void removeAttribute(String name) {
-        attributes.remove(name);
+        attrs.remove(name);
     }
 
     public boolean hasAttribute(String name) {
-        return attributes.containsKey(name);
+        return attrs.containsKey(name);
     }
 
-    public void touch() {
-        this.lastAccessTime = System.currentTimeMillis();
+    public Map<String, Object> getAttributes() {
+        return Collections.unmodifiableMap(attrs);
+    }
+
+    public Set<String> getAttributeNames() {
+        return Collections.unmodifiableSet(attrs.keySet());
     }
 
     public void clear() {
-        attributes.clear();
+        attrs.clear();
     }
 
-    public void flushTo(HttpSession httpSession) {
-        for (String key : initialKeys) {
-            if (!attributes.containsKey(key)) {
-                httpSession.removeAttribute(key);
-            }
-        }
-        for (Map.Entry<String, Object> e : attributes.entrySet()) {
-            httpSession.setAttribute(e.getKey(), e.getValue());
-        }
-        this.lastAccessTime = System.currentTimeMillis();
-    }
-
-    @Override
-    public String toString() {
-        return "DfwSession[id=" + id
-                + ", creationTime=" + creationTime
-                + ", lastAccessTime=" + lastAccessTime
-                + ", attributes=" + attributes.keySet() + "]";
+    public void invalidate() {
+        http.invalidate();
     }
 }

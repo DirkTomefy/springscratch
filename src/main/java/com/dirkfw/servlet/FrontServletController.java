@@ -3,6 +3,7 @@ package com.dirkfw.servlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import com.dirkfw.annotation.JsonResponse;
 import com.dirkfw.core.FrontServletParam;
@@ -11,12 +12,14 @@ import com.dirkfw.mapping.ModelAndView;
 import com.dirkfw.mapping.UrlControllerMap;
 import com.dirkfw.mapping.UrlHTTPMethod;
 import com.dirkfw.mapping.UrlKey;
+import com.dirkfw.session.DfwSession;
 import com.dirkfw.servlet.listener.FrontServletContextListener;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 public class FrontServletController extends HttpServlet {
 
@@ -25,7 +28,10 @@ public class FrontServletController extends HttpServlet {
     FrontServletParam frontServletParam;
     String uploadDir;
 
+    private Map<String, DfwSession> sessions;
+
     @Override
+    @SuppressWarnings("unchecked")
     public void init() throws ServletException {
         frontServletParam = (FrontServletParam) getServletContext()
                 .getAttribute(FrontServletContextListener.URL_PROCESSOR_ATTR);
@@ -38,10 +44,17 @@ public class FrontServletController extends HttpServlet {
         uploadDir = (String) getServletContext()
                 .getAttribute(FrontServletContextListener.UPLOAD_DIR_ATTR);
 
+        sessions = (Map<String, DfwSession>) getServletContext()
+                .getAttribute(FrontServletContextListener.SESSIONS_ATTR);
+
         if (frontServletParam == null) {
             throw new ServletException(
                     "[dirkfw] FrontServletParam introuvable — "
                     + "FrontServletContextListener n'a pas démarré.");
+        }
+        if (sessions == null) {
+            throw new ServletException(
+                    "[dirkfw] Map des sessions introuvable dans le ServletContext.");
         }
     }
 
@@ -73,8 +86,6 @@ public class FrontServletController extends HttpServlet {
                 this, controllerMethod, request, response);
         Object returnValueObject = controllerMethod.invoke(controller, args);
 
-        FrontServletExecuterHelper.syncDfwSessions(controllerMethod, args, request);
-
         if (returnValueObject == null)
             return;
 
@@ -104,6 +115,17 @@ public class FrontServletController extends HttpServlet {
 
         response.setCharacterEncoding("UTF-8");
 
+        HttpSession http = request.getSession(true);
+
+        DfwSession dfw = sessions.get(http.getId());
+        if (dfw == null) {
+            dfw = new DfwSession(http);
+            sessions.put(http.getId(), dfw);
+        }
+
+        dfw.refresh();
+        request.setAttribute(DfwSession.CURRENT_ATTR, dfw);
+
         try {
             executeRequest(request, response);
         } catch (Exception e) {
@@ -116,6 +138,11 @@ public class FrontServletController extends HttpServlet {
 
             try (PrintWriter out = response.getWriter()) {
                 printError(out, e);
+            }
+        } finally {
+            try {
+                dfw.flush();
+            } catch (Exception ignored) {
             }
         }
     }

@@ -80,7 +80,7 @@ public class FrontServletExecuterHelper {
             return request.getSession(true);
 
         if (type == DfwSession.class)
-            return DfwSession.from(request.getSession(true));
+            return request.getAttribute(DfwSession.CURRENT_ATTR);
 
         if (type == DfwMultipartFile.class)
             return readMultipartFile(parameter, request, controller);
@@ -100,21 +100,6 @@ public class FrontServletExecuterHelper {
 
         String prefix = determinePrefix(parameter);
         return bindObject(type, request, prefix, controller);
-    }
-
-    public static void syncDfwSessions(Method method, Object[] args, HttpServletRequest request) {
-        if (args == null) return;
-        Parameter[] parameters = method.getParameters();
-
-        for (int i = 0; i < parameters.length; i++) {
-            if (parameters[i].getType() != DfwSession.class) continue;
-            if (!(args[i] instanceof DfwSession)) continue;
-
-            HttpSession httpSession = request.getSession(false);
-            if (httpSession == null) continue;
-
-            ((DfwSession) args[i]).flushTo(httpSession);
-        }
     }
 
     private static String determinePrefix(Parameter parameter) {
