@@ -6,7 +6,10 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import com.dirkfw.annotation.JsonResponse;
+import com.dirkfw.annotation.SessionRequired;
+import com.dirkfw.config.ConfigLoader;
 import com.dirkfw.core.FrontServletParam;
+import com.dirkfw.exception.SessionRequiredException;
 import com.dirkfw.exception.UrlNotSupportedException;
 import com.dirkfw.mapping.ModelAndView;
 import com.dirkfw.mapping.UrlControllerMap;
@@ -27,7 +30,9 @@ public class FrontServletController extends HttpServlet {
     String suffixOfView;
     FrontServletParam frontServletParam;
     String uploadDir;
+    String authSessionName;
 
+    @SuppressWarnings("unchecked")
     private Map<String, DfwSession> sessions;
 
     @Override
@@ -46,6 +51,16 @@ public class FrontServletController extends HttpServlet {
 
         sessions = (Map<String, DfwSession>) getServletContext()
                 .getAttribute(FrontServletContextListener.SESSIONS_ATTR);
+
+        ConfigLoader config = (ConfigLoader) getServletContext()
+                .getAttribute(FrontServletContextListener.CONFIG_LOADER_ATTR);
+
+        if (config != null) {
+            String name = config.get(ConfigLoader.AUTH_KEY);
+            if (name != null && !name.trim().isEmpty()) {
+                authSessionName = name.trim();
+            }
+        }
 
         if (frontServletParam == null) {
             throw new ServletException(
@@ -82,6 +97,8 @@ public class FrontServletController extends HttpServlet {
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
 
+        checkSessionRequired(controllerMethod, request);
+
         Object[] args = FrontServletExecuterHelper.resolveArguments(
                 this, controllerMethod, request, response);
         Object returnValueObject = controllerMethod.invoke(controller, args);
@@ -95,6 +112,36 @@ public class FrontServletController extends HttpServlet {
         } else if (returnValueObject instanceof ModelAndView) {
             ModelAndView mav = (ModelAndView) returnValueObject;
             FrontServletExecuterHelper.forwardToView(this, mav, request, response);
+        }
+    }
+
+    private void checkSessionRequired(Method method, HttpServletRequest request) {
+        SessionRequired sr = method.getAnnotation(SessionRequired.class);
+        if (sr == null) return;
+
+        DfwSession session = (DfwSession) request.getAttribute(DfwSession.CURRENT_ATTR);
+        if (session == null) {
+            throw SessionRequiredException.noSession(method.getName());
+        }
+
+        String name = sr.sessionName();
+
+        if (name == null || name.trim().isEmpty()) {
+            name = authSessionName;
+        }
+
+        if (name == null || name.trim().isEmpty()) {
+            return;
+        }
+
+        Object value = session.getAttribute(name);
+        if (value == null) {
+            throw SessionRequiredException.missingAttribute(name);
+        }
+
+        Class<?> expected = sr.type();
+        if (expected != Object.class && !expected.isInstance(value)) {
+            throw SessionRequiredException.wrongType(name, expected, value.getClass());
         }
     }
 
@@ -128,6 +175,20 @@ public class FrontServletController extends HttpServlet {
 
         try {
             executeRequest(request, response);
+        } catch (SessionRequiredException e) {
+            if (response.isCommitted()) {
+                log("[dirkfw] réponse déjà committée", e);
+                return;
+            }
+            response.setContentType("text/html;charset=UTF-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+            try (PrintWriter out = response.getWriter()) {
+                out.println("<p>Accès non autorisé</p>");
+                out.println("<pre>");
+                out.println(e.getMessage());
+                out.println("</pre>");
+            }
         } catch (Exception e) {
             if (response.isCommitted()) {
                 log("[dirkfw] réponse déjà committée, impossible de renvoyer l'erreur", e);
