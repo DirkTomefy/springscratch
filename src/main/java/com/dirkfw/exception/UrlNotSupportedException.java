@@ -5,7 +5,8 @@ import java.util.HashMap;
 import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlControllerMap;
 
-public class UrlNotSupportedException extends Exception {
+public class UrlNotSupportedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
     UrlKey urlGot;
     HashMap<UrlKey, UrlControllerMap> supportedUrl;
 

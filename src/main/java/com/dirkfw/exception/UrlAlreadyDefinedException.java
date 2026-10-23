@@ -5,6 +5,8 @@ import com.dirkfw.mapping.UrlKey;
 import com.dirkfw.mapping.UrlControllerMap;
 
 public class UrlAlreadyDefinedException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     UrlKey url;
     UrlControllerMap value;
     public UrlAlreadyDefinedException(UrlKey url, UrlControllerMap value) {
