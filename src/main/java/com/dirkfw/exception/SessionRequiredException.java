@@ -1,15 +1,17 @@
 package com.dirkfw.exception;
 
-public class SessionRequiredException extends RuntimeException {
+public class SessionRequiredException extends DfwException {
 
     private static final long serialVersionUID = 1L;
 
+    private static final int STATUS = 401; // Unauthorized
+
     public SessionRequiredException(String message) {
-        super(message);
+        super(STATUS, message);
     }
 
     public SessionRequiredException(String message, Throwable cause) {
-        super(message, cause);
+        super(STATUS, message, cause);
     }
 
     public static SessionRequiredException noSession(String methodName) {
