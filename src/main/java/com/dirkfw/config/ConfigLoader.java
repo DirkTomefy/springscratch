@@ -6,8 +6,9 @@ import java.util.Properties;
 
 public class ConfigLoader {
 
-    public static final String DIRKFW_PROPERTIES_FILE  = "dirkfw.propreties";
+    public static final String DIRKFW_PROPERTIES_FILE  = "dirkfw.properties";
     public static final String UPLOAD_DIR_KEY          = "dirkfw.updir";
+    public static final String AUTH_KEY                = "dirk.authsession";
 
     private final Properties properties = new Properties();
 
