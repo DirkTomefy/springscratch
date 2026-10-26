@@ -28,10 +28,6 @@ import jakarta.servlet.http.HttpSession;
 
 public class FrontServletController extends HttpServlet {
 
-    private static final long serialVersionUID = 1L;
-
-    private static final String CURRENT_METHOD_ATTR = "dirkfw.currentMethod";
-
     String prefixOfView;
     String suffixOfView;
     FrontServletParam frontServletParam;
@@ -97,9 +93,7 @@ public class FrontServletController extends HttpServlet {
     private void executeRequest(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
 
-        String urlString = getRequestedUrl(request);
-        UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
-        UrlKey urlKey = new UrlKey(urlString, method);
+        UrlKey urlKey = buildUrlKey(request);
 
         UrlControllerMap map = frontServletParam.getUrlMapps().get(urlKey);
         if (map == null)
@@ -107,7 +101,6 @@ public class FrontServletController extends HttpServlet {
 
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
-        request.setAttribute(CURRENT_METHOD_ATTR, controllerMethod);
 
         checkSessionRequired(controllerMethod, request);
 
@@ -253,8 +246,13 @@ public class FrontServletController extends HttpServlet {
     }
 
     private boolean isJsonRequest(HttpServletRequest request) {
-        Object m = request.getAttribute(CURRENT_METHOD_ATTR);
-        return m instanceof Method && ((Method) m).isAnnotationPresent(JsonResponse.class);
+        UrlControllerMap map = frontServletParam.getUrlMapps().get(buildUrlKey(request));
+        return map != null && map.getReflectMethod().isAnnotationPresent(JsonResponse.class);
+    }
+
+    private UrlKey buildUrlKey(HttpServletRequest request) {
+        UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
+        return new UrlKey(getRequestedUrl(request), method);
     }
 
     private String publicMessage(int status, Exception e) {
