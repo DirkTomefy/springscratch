@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface SessionRequired {
 
-    String sessionName() default ""; //! si vide on prend dirkfw.authsession du propreties
+    String[] value() default {}; //! roles autorises ; vide = pas de controle de role. Nom de la variable de role : dirk.authrole du propreties
 
     Class<?> type() default Object.class;
 }

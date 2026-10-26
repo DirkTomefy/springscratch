@@ -28,15 +28,12 @@ import jakarta.servlet.http.HttpSession;
 
 public class FrontServletController extends HttpServlet {
 
-    private static final long serialVersionUID = 1L;
-
-    private static final String CURRENT_METHOD_ATTR = "dirkfw.currentMethod";
-
     String prefixOfView;
     String suffixOfView;
     FrontServletParam frontServletParam;
     String uploadDir;
     String authSessionName;
+    String authRoleName;
 
     private Map<String, DfwSession> sessions;
 
@@ -65,11 +62,16 @@ public class FrontServletController extends HttpServlet {
             if (name != null && !name.trim().isEmpty()) {
                 authSessionName = name.trim();
             }
+            String role = config.get(ConfigLoader.ROLE_KEY);
+            if (role != null && !role.trim().isEmpty()) {
+                authRoleName = role.trim();
+            }
         }
 
         log("[dirkfw] ConfigLoader=" + (config == null ? "ABSENT (attribut "
                 + FrontServletContextListener.CONFIG_LOADER_ATTR + " non défini)" : "OK")
                 + ", authSessionName=" + authSessionName
+                + ", authRoleName=" + authRoleName
                 + ", uploadDir=" + uploadDir);
 
         if (frontServletParam == null) {
@@ -97,9 +99,7 @@ public class FrontServletController extends HttpServlet {
     private void executeRequest(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
 
-        String urlString = getRequestedUrl(request);
-        UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
-        UrlKey urlKey = new UrlKey(urlString, method);
+        UrlKey urlKey = buildUrlKey(request);
 
         UrlControllerMap map = frontServletParam.getUrlMapps().get(urlKey);
         if (map == null)
@@ -107,7 +107,6 @@ public class FrontServletController extends HttpServlet {
 
         Object controller = map.getControllerInstance(request);
         Method controllerMethod = map.getReflectMethod();
-        request.setAttribute(CURRENT_METHOD_ATTR, controllerMethod);
 
         checkSessionRequired(controllerMethod, request);
 
@@ -150,29 +149,46 @@ public class FrontServletController extends HttpServlet {
             throw SessionRequiredException.noSession(method.getName());
         }
 
-        String name = sr.sessionName();
-
-        if (name == null || name.trim().isEmpty()) {
-            name = authSessionName;
-        }
-
-        if (name == null || name.trim().isEmpty()) {
+        if (authSessionName == null) {
             throw new DfwException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "@SessionRequired sur la méthode '" + method.getName()
-                    + "' sans sessionName, et aucune clé d'authentification n'est configurée "
-                    + "(ConfigLoader.AUTH_KEY). Précisez @SessionRequired(sessionName = \"...\") "
-                    + "ou configurez la clé par défaut.");
+                    + "' mais la clé " + ConfigLoader.AUTH_KEY + " n'est pas configurée "
+                    + "dans " + ConfigLoader.DIRKFW_PROPERTIES_FILE + ".");
         }
 
-        Object value = session.getAttribute(name);
+        Object value = session.getAttribute(authSessionName);
         if (value == null) {
-            throw SessionRequiredException.missingAttribute(name);
+            throw SessionRequiredException.missingAttribute(authSessionName);
         }
 
         Class<?> expected = sr.type();
         if (expected != Object.class && !expected.isInstance(value)) {
-            throw SessionRequiredException.wrongType(name, expected, value.getClass());
+            throw SessionRequiredException.wrongType(authSessionName, expected, value.getClass());
         }
+
+        if (sr.value().length > 0) {
+            checkRole(method, session, sr.value());
+        }
+    }
+
+    private void checkRole(Method method, DfwSession session, String[] allowedRoles) {
+        if (authRoleName == null) {
+            throw new DfwException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "@SessionRequired(value = ...) sur la méthode '" + method.getName()
+                    + "' mais la clé " + ConfigLoader.ROLE_KEY + " n'est pas configurée "
+                    + "dans " + ConfigLoader.DIRKFW_PROPERTIES_FILE + ".");
+        }
+
+        Object role = session.getAttribute(authRoleName);
+        if (role == null) {
+            throw SessionRequiredException.missingAttribute(authRoleName);
+        }
+
+        for (String allowed : allowedRoles) {
+            if (allowed.equals(String.valueOf(role))) return;
+        }
+        throw new SessionRequiredException("Rôle '" + role + "' non autorisé pour "
+                + method.getName());
     }
 
     @Override
@@ -253,8 +269,13 @@ public class FrontServletController extends HttpServlet {
     }
 
     private boolean isJsonRequest(HttpServletRequest request) {
-        Object m = request.getAttribute(CURRENT_METHOD_ATTR);
-        return m instanceof Method && ((Method) m).isAnnotationPresent(JsonResponse.class);
+        UrlControllerMap map = frontServletParam.getUrlMapps().get(buildUrlKey(request));
+        return map != null && map.getReflectMethod().isAnnotationPresent(JsonResponse.class);
+    }
+
+    private UrlKey buildUrlKey(HttpServletRequest request) {
+        UrlHTTPMethod method = UrlHTTPMethod.buildUrlHTTPMethod(request.getMethod());
+        return new UrlKey(getRequestedUrl(request), method);
     }
 
     private String publicMessage(int status, Exception e) {
