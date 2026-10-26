@@ -33,6 +33,7 @@ public class FrontServletController extends HttpServlet {
     FrontServletParam frontServletParam;
     String uploadDir;
     String authSessionName;
+    String authRoleName;
 
     private Map<String, DfwSession> sessions;
 
@@ -61,11 +62,16 @@ public class FrontServletController extends HttpServlet {
             if (name != null && !name.trim().isEmpty()) {
                 authSessionName = name.trim();
             }
+            String role = config.get(ConfigLoader.ROLE_KEY);
+            if (role != null && !role.trim().isEmpty()) {
+                authRoleName = role.trim();
+            }
         }
 
         log("[dirkfw] ConfigLoader=" + (config == null ? "ABSENT (attribut "
                 + FrontServletContextListener.CONFIG_LOADER_ATTR + " non défini)" : "OK")
                 + ", authSessionName=" + authSessionName
+                + ", authRoleName=" + authRoleName
                 + ", uploadDir=" + uploadDir);
 
         if (frontServletParam == null) {
@@ -143,29 +149,46 @@ public class FrontServletController extends HttpServlet {
             throw SessionRequiredException.noSession(method.getName());
         }
 
-        String name = sr.sessionName();
-
-        if (name == null || name.trim().isEmpty()) {
-            name = authSessionName;
-        }
-
-        if (name == null || name.trim().isEmpty()) {
+        if (authSessionName == null) {
             throw new DfwException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "@SessionRequired sur la méthode '" + method.getName()
-                    + "' sans sessionName, et aucune clé d'authentification n'est configurée "
-                    + "(ConfigLoader.AUTH_KEY). Précisez @SessionRequired(sessionName = \"...\") "
-                    + "ou configurez la clé par défaut.");
+                    + "' mais la clé " + ConfigLoader.AUTH_KEY + " n'est pas configurée "
+                    + "dans " + ConfigLoader.DIRKFW_PROPERTIES_FILE + ".");
         }
 
-        Object value = session.getAttribute(name);
+        Object value = session.getAttribute(authSessionName);
         if (value == null) {
-            throw SessionRequiredException.missingAttribute(name);
+            throw SessionRequiredException.missingAttribute(authSessionName);
         }
 
         Class<?> expected = sr.type();
         if (expected != Object.class && !expected.isInstance(value)) {
-            throw SessionRequiredException.wrongType(name, expected, value.getClass());
+            throw SessionRequiredException.wrongType(authSessionName, expected, value.getClass());
         }
+
+        if (sr.value().length > 0) {
+            checkRole(method, session, sr.value());
+        }
+    }
+
+    private void checkRole(Method method, DfwSession session, String[] allowedRoles) {
+        if (authRoleName == null) {
+            throw new DfwException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "@SessionRequired(value = ...) sur la méthode '" + method.getName()
+                    + "' mais la clé " + ConfigLoader.ROLE_KEY + " n'est pas configurée "
+                    + "dans " + ConfigLoader.DIRKFW_PROPERTIES_FILE + ".");
+        }
+
+        Object role = session.getAttribute(authRoleName);
+        if (role == null) {
+            throw SessionRequiredException.missingAttribute(authRoleName);
+        }
+
+        for (String allowed : allowedRoles) {
+            if (allowed.equals(String.valueOf(role))) return;
+        }
+        throw new SessionRequiredException("Rôle '" + role + "' non autorisé pour "
+                + method.getName());
     }
 
     @Override
