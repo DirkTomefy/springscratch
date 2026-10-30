@@ -36,6 +36,7 @@ public class FrontServletController extends HttpServlet {
     String authRoleName;
 
     private Map<String, DfwSession> sessions;
+    private Map<Class<?>, Object> controllers;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -53,6 +54,9 @@ public class FrontServletController extends HttpServlet {
 
         sessions = (Map<String, DfwSession>) getServletContext()
                 .getAttribute(FrontServletContextListener.SESSIONS_ATTR);
+
+        controllers = (Map<Class<?>, Object>) getServletContext()
+                .getAttribute(FrontServletContextListener.CONTROLLERS_ATTR);
 
         ConfigLoader config = (ConfigLoader) getServletContext()
                 .getAttribute(FrontServletContextListener.CONFIG_LOADER_ATTR);
@@ -78,6 +82,10 @@ public class FrontServletController extends HttpServlet {
             throw new ServletException(
                     "[dirkfw] FrontServletParam introuvable — "
                     + "FrontServletContextListener n'a pas démarré.");
+        }
+        if (controllers == null) {
+            throw new ServletException(
+                    "[dirkfw] Liste des controllers introuvable dans le ServletContext.");
         }
         if (sessions == null) {
             throw new ServletException(
@@ -105,7 +113,7 @@ public class FrontServletController extends HttpServlet {
         if (map == null)
             throw new UrlNotSupportedException(urlKey, frontServletParam.getUrlMapps());
 
-        Object controller = map.getControllerInstance(request);
+        Object controller = controllers.get(map.getControllerClass());
         Method controllerMethod = map.getReflectMethod();
 
         checkSessionRequired(controllerMethod, request);

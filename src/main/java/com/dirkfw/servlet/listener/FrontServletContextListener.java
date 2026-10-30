@@ -1,6 +1,7 @@
 package com.dirkfw.servlet.listener;
 
 import java.lang.reflect.Constructor;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +33,7 @@ public class FrontServletContextListener
     public static final String CONFIG_LOADER_ATTR  = "dirkfwConfigLoader";
     public static final String UPLOAD_DIR_ATTR     = "dirkfwUploadDir";
     public static final String SESSIONS_ATTR       = "dirkfwSessions";
+    public static final String CONTROLLERS_ATTR    = "dirkfwControllers";
 
     private Object springContext;
 
@@ -58,6 +60,12 @@ public class FrontServletContextListener
 
         Map<String, DfwSession> sessions = new ConcurrentHashMap<>();
         context.setAttribute(SESSIONS_ATTR, sessions);
+
+        Map<Class<?>, Object> controllers = new HashMap<>();
+        for (Class<?> controllerClass : urlProcessor.getControllerClasses()) {
+            controllers.put(controllerClass, beanProvider.getBean(controllerClass));
+        }
+        context.setAttribute(CONTROLLERS_ATTR, controllers);
 
         registerContextAttributes(
                 context,
