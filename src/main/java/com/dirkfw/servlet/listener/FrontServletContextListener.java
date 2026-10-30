@@ -132,7 +132,9 @@ public class FrontServletContextListener
         try {
             Constructor<?> constructor = type.getDeclaredConstructor();
             constructor.setAccessible(true);
-            return constructor.newInstance();
+            Object instance = constructor.newInstance();
+            System.out.println(type.getName() + " est instancié");
+            return instance;
         } catch (Exception e) {
             throw new RuntimeException(
                     "Impossible d'instancier " + type.getName(), e);
