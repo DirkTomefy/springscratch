@@ -1,11 +1,10 @@
 package com.dirkfw.servlet.listener;
 
 import java.lang.reflect.Constructor;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.dirkfw.container.ControllerProvider;
-import com.dirkfw.container.DfwBeanProvider;
 import com.dirkfw.core.FrontServletParam;
 import com.dirkfw.session.DfwSession;
 import com.dirkfw.util.ScanUtil;
@@ -26,12 +25,12 @@ public class FrontServletContextListener
     public static final String VIEW_PREFIX         = "VIEW_PREFIX";
     public static final String VIEW_SUFFIX         = "VIEW_SUFFIX";
     public static final String CONTROLLER_PACKAGE  = "CONTROLLER_PACKAGE";
-    public static final String BEAN_PROVIDER_CLASS = "BEAN_PROVIDER";
     public static final String SPRING_CONFIGURATION = "SPRING_CONFIGURATION";
 
     public static final String CONFIG_LOADER_ATTR  = "dirkfwConfigLoader";
     public static final String UPLOAD_DIR_ATTR     = "dirkfwUploadDir";
     public static final String SESSIONS_ATTR       = "dirkfwSessions";
+    public static final String CONTROLLERS_ATTR    = "dirkfwControllers";
 
     private Object springContext;
 
@@ -48,21 +47,23 @@ public class FrontServletContextListener
         Object springContext = createSpringContext(context);
         this.springContext = springContext;
 
-        ControllerProvider beanProvider = createBeanProvider(context, springContext);
-
         FrontServletParam urlProcessor = createUrlProcessor(
                 controllerPackage,
-                beanProvider,
                 springContext
         );
 
         Map<String, DfwSession> sessions = new ConcurrentHashMap<>();
         context.setAttribute(SESSIONS_ATTR, sessions);
 
+        Map<Class<?>, Object> controllers = new HashMap<>();
+        for (Class<?> controllerClass : urlProcessor.getControllerClasses()) {
+            controllers.put(controllerClass, instantiate(controllerClass));
+        }
+        context.setAttribute(CONTROLLERS_ATTR, controllers);
+
         registerContextAttributes(
                 context,
                 urlProcessor,
-                beanProvider,
                 viewPrefix,
                 viewSuffix,
                 config
@@ -127,29 +128,16 @@ public class FrontServletContextListener
         return value == null ? "" : value;
     }
 
-    private ControllerProvider createBeanProvider(ServletContext context, Object externalContext) {
+    private Object instantiate(Class<?> type) {
         try {
-            String providerClassName = context.getInitParameter(BEAN_PROVIDER_CLASS);
-
-            if (providerClassName == null || providerClassName.trim().isEmpty()) {
-                return new DfwBeanProvider(context, externalContext);
-            }
-
-            Class<?> providerClass = Class.forName(providerClassName);
-
-            if (!ControllerProvider.class.isAssignableFrom(providerClass)) {
-                throw new RuntimeException(
-                        providerClassName + " doit hériter de " + ControllerProvider.class.getName());
-            }
-
-            Constructor<?> constructor =
-                    providerClass.getConstructor(ServletContext.class, Object.class);
-
-            return (ControllerProvider) constructor.newInstance(context, externalContext);
-
+            Constructor<?> constructor = type.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            Object instance = constructor.newInstance();
+            System.out.println(type.getName() + " est instancié");
+            return instance;
         } catch (Exception e) {
             throw new RuntimeException(
-                    "Impossible d'initialiser le BeanProvider.", e);
+                    "Impossible d'instancier " + type.getName(), e);
         }
     }
 
@@ -183,10 +171,9 @@ public class FrontServletContextListener
 
     private FrontServletParam createUrlProcessor(
             String controllerPackage,
-            ControllerProvider beanProvider,
             Object springContext) {
 
-        FrontServletParam processor = new FrontServletParam(beanProvider, springContext);
+        FrontServletParam processor = new FrontServletParam(springContext);
 
         try {
             ScanUtil.fillUrlProcessor(controllerPackage, processor);
@@ -201,7 +188,6 @@ public class FrontServletContextListener
     private void registerContextAttributes(
             ServletContext context,
             FrontServletParam processor,
-            ControllerProvider beanProvider,
             String viewPrefix,
             String viewSuffix,
             ConfigLoader config) {
@@ -209,7 +195,6 @@ public class FrontServletContextListener
         context.setAttribute(URL_PROCESSOR_ATTR, processor);
         context.setAttribute(VIEW_PREFIX, viewPrefix);
         context.setAttribute(VIEW_SUFFIX, viewSuffix);
-        context.setAttribute(BEAN_PROVIDER_CLASS, beanProvider);
 
         if (config != null) {
             context.setAttribute(CONFIG_LOADER_ATTR, config);
